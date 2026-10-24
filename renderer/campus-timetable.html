@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' blob: data:; img-src 'self' data: blob:; worker-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'">
+  <title>智小理 · 我的课表</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f5f7fc; color: #283653; font: 13px/1.6 'Microsoft YaHei', sans-serif; }
+    header { padding: 20px 26px 14px; background: white; border-bottom: 1px solid #e4eaf4; }
+    h1 { font-size: 21px; margin: 0; }
+    p { margin: 6px 0; color: #718099; }
+    button, input, select, textarea { font: inherit; }
+    button { padding: 7px 12px; border: 1px solid #d8e1f1; border-radius: 7px; background: white; color: #3a63b3; cursor: pointer; }
+    button:hover { background: #f0f5ff; }
+    button:disabled { opacity: .5; cursor: default; }
+    button.primary { background: #4779e9; color: white; border-color: #4779e9; }
+    button.danger { color: #aa515b; }
+    input, select, textarea { width: 100%; min-width: 0; border: 1px solid #d8e1f1; border-radius: 6px; background: white; color: inherit; padding: 6px 8px; }
+    input:focus, select:focus, textarea:focus { outline: 2px solid #c8dbff; outline-offset: 1px; }
+    input[type=checkbox] { width: auto; }
+    label { display: block; }
+    label > input { margin-top: 4px; }
+    main { display: grid; grid-template-columns: minmax(230px, 30%) minmax(0, 1fr); gap: 16px; padding: 18px 22px 100px; align-items: start; }
+    section, aside { background: white; padding: 16px; border: 1px solid #e5eaf4; border-radius: 12px; }
+    aside { position: sticky; top: 16px; max-height: calc(100vh - 220px); overflow: auto; }
+    h2 { font-size: 15px; margin: 0 0 10px; }
+    .stack { display: grid; gap: 14px; min-width: 0; }
+    .actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .meta { display: grid; grid-template-columns: 1.3fr 1.2fr .7fr; gap: 12px; margin: 12px 0; }
+    .scroll { overflow-x: auto; margin: 10px -4px; padding: 4px; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th { color: #718099; font-weight: normal; font-size: 12px; }
+    th, td { padding: 5px 3px; vertical-align: top; }
+    #courses { min-width: 630px; }
+    #courses th:nth-child(1) { width: 22%; }
+    #courses th:nth-child(2) { width: 10%; }
+    #courses th:nth-child(3), #courses th:nth-child(4) { width: 8%; }
+    #courses th:nth-child(5) { width: 19%; }
+    #courses th:nth-child(6) { width: 17%; }
+    #courses th:nth-child(7) { width: 12%; }
+    td button { padding: 5px 8px; }
+    #periods { max-width: 470px; }
+    #periods input[type=number] { max-width: 74px; }
+    summary { cursor: pointer; color: #3a63b3; }
+    details label { margin-top: 10px; }
+    #preview { margin-top: 12px; }
+    #preview img { display: block; width: 100%; height: auto; border: 1px solid #e5eaf4; margin-bottom: 12px; }
+    #source-name { overflow-wrap: anywhere; }
+    .hint { font-size: 12px; }
+    #warnings { white-space: pre-wrap; color: #99703c; font-size: 12px; max-height: 160px; overflow: auto; }
+    #notes { resize: vertical; }
+    footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fffffff5; border-top: 1px solid #e4eaf4; padding: 12px 22px; display: flex; align-items: center; gap: 16px; }
+    #status { flex: 1; white-space: pre-wrap; color: #4265a5; max-height: 70px; overflow: auto; }
+    #cancel[hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>我的课表</h1>
+    <p>导入后先核对，再保存。智小理会在聊天时参考你确认的课表。</p>
+    <div class="actions">
+      <button id="import" disabled>导入图片 / PDF</button>
+      <button id="parse" class="primary" disabled>识别为课表草稿</button>
+      <button id="cancel" hidden>停止识别</button>
+      <button id="refresh" disabled>重新读取已保存课表</button>
+      <button id="clear" class="danger" disabled>清空课表</button>
+    </div>
+  </header>
+  <main>
+    <aside>
+      <h2>原课表</h2>
+      <p id="source-name">支持 PNG、JPG、WebP 和 PDF，文件最大20MB，PDF最多6页。</p>
+      <button id="show-source" disabled>查看已保存的原文件</button>
+      <p class="hint">点击识别时，图片会发送给百炼。原文件保存在本机；聊天时只发送课表文字给学校平台。</p>
+      <div id="preview"></div>
+    </aside>
+    <div class="stack">
+      <section>
+        <h2>学期信息</h2>
+        <label><input id="enabled" type="checkbox" checked> 在校园聊天中使用这份课表</label>
+        <div class="meta">
+          <label>学期名称<input id="term-name" maxlength="120" placeholder="例如：2026—2027学年第一学期"></label>
+          <label>第一教学周的周一<input id="week-monday" type="date"></label>
+          <label>学期总周数<input id="total-weeks" type="number" min="1" max="53" placeholder="待补充"></label>
+        </div>
+        <p class="hint">周次按第一教学周的周一计算，不是导入当天。图片里没有这些信息时，请自行补充。</p>
+        <p id="saved-info" class="hint"></p>
+        <div id="warnings" role="status"></div>
+      </section>
+      <section>
+        <h2>课程安排</h2>
+        <p class="hint">同一课程在不同星期或节次上课，请分行填写。周次示例：1-16、1-16(单)、1-8,10-16；空白表示未知。</p>
+        <div class="scroll"><table id="courses">
+          <thead><tr><th>课程</th><th>星期</th><th>起始节</th><th>结束节</th><th>上课周次</th><th>地点 / 校区</th><th>教师</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+        <button id="add-course">添加课程</button>
+        <label class="hint">核对备注（不确定的内容可保留在这里）<textarea id="notes" rows="2" maxlength="2000" placeholder="例如：周三第3—4节的教室看不清，待核对。"></textarea></label>
+      </section>
+      <section>
+        <h2>学校节次时间</h2>
+        <p class="hint">填写每小节的上下课钟点。未填写时，智小理只能知道“第几节”，无法确定具体时间。</p>
+        <table id="periods"><thead><tr><th>第几节</th><th>开始</th><th>结束</th><th></th></tr></thead><tbody></tbody></table>
+        <div class="actions"><button id="add-period">添加节次</button></div>
+      </section>
+      <section>
+        <h2>课表识别配置</h2>
+        <p id="model-info" class="hint">正在读取…</p>
+        <button id="open-model-settings">前往设置</button>
+        <p class="hint">API Key、接口地址和视觉模型统一在“设置 → 我的课表”管理，点击“保存更改”生效。</p>
+      </section>
+    </div>
+  </main>
+  <footer><div id="status" role="status">正在读取本地课表…</div><button id="save" class="primary" disabled>保存课表</button></footer>
+  <script src="../services/timetable-utils.js"></script>
+  <script src="./campus-timetable.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+智小理·校园伴行 / Zhixiaoli Campus Companion
+
+This application includes modified code derived from OpenDesktopPet.
+Original project: OpenDesktopPet
+Copyright 2025 Loney
+Application source is distributed under Apache License 2.0. See LICENSE.
+Original copyright headers are retained in derived source files.
+
+Local modifications include campus integration, the study Agent runtime,
+shared student memory, timetable management, desktop UI and Canvas character rig.
+The supplied character artwork is separate from the source code license;
+this NOTICE grants no additional rights to that artwork.
+
+Bundled third-party browser libraries:
+- Marked: libs/marked.umd.js, MIT; libs/licenses/marked-LICENSE.
+- DOMPurify: libs/purify.min.js, Apache-2.0 OR MPL-2.0;
+  libs/licenses/dompurify-LICENSE and dompurify-LICENSE-MPL.
+
+Other dependencies retain their package licenses, including Electron, PDF.js, Cheerio
+and Python edge-tts. See their package metadata and license files.
+
+Build-time dependency:
+- sharp, Copyright Lovell Fuller and contributors, Apache-2.0 AND LGPL-3.0-or-later.
+  Used by scripts/make-icons.js, not included as an application runtime dependency.
+
+The legacy Live2D Cubism runtime, PixiJS files and upstream character assets
+have been removed. Current character rendering uses the local Canvas implementation.

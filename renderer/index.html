@@ -1,0 +1,409 @@
+<!--
+  Copyright 2025 Loney
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>智小理</title>
+  <!-- Campus integration modified locally, 2026-10-22. -->
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --fs: 13px;
+      --bar: 28px;
+      --theme: #5B8CFF;
+      --theme2: #5B8CFF;
+      --theme-gradient: linear-gradient(135deg, #5B8CFF, #5B8CFF);
+      --theme-light: #AFCBFF;
+      --theme-bg: #EAF2FF;
+      --theme-dark: #3a6ee8;
+      --theme-shadow: rgba(91,140,255,0.4);
+      --theme-shadow-soft: rgba(91,140,255,0.18);
+      --campus-reply-space: clamp(210px, 42vh, 360px);
+    }
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: transparent;
+      font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+    }
+
+    /* =========================================================
+       智小理人物渲染层
+    ========================================================= */
+    #portrait-stage {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      overflow: hidden;
+    }
+    #portrait-stage canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      pointer-events: all;
+    }
+    #custom-pet-image {
+      display: none;
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      pointer-events: none;
+      z-index: 2;
+      transform-origin: center bottom;
+      background: transparent;
+    }
+
+    /* =========================================================
+       UI 叠加层
+    ========================================================= */
+    #ui-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* ─── 聊天气泡 ─────────────────────────────────────────── */
+    #chat-bubble {
+      position: absolute;
+      top: 8px;
+      left: 12px;
+      right: 12px;
+      height: calc(var(--campus-reply-space) - 12px);
+      overflow: hidden;
+      font-size: var(--fs);
+      line-height: 1.6;
+      pointer-events: none;
+      z-index: 10;
+      mask-image: linear-gradient(to bottom, transparent, black 20px, black);
+    }
+    #chat-bubble .speech-bubble {
+      position: absolute;
+      left: 3px;
+      bottom: 10px;
+      width: fit-content;
+      max-width: calc(100% - 18px);
+      max-height: calc(100% - 28px);
+      padding: 10px 14px 12px;
+      border-radius: 16px 16px 16px 4px;
+      border: 1px solid rgba(127,127,127,.22);
+      background: rgba(255,255,255,.97);
+      color: #29334a;
+      box-shadow: 0 4px 14px rgba(0,0,0,.1);
+      display: flex;
+      flex-direction: column;
+      pointer-events: auto;
+      opacity: var(--bubble-opacity, 1);
+      transform: translateY(var(--bubble-y, 0px));
+      transition: transform .25s ease, opacity .25s ease;
+    }
+    #chat-bubble .speech-bubble[data-kind="user"] {
+      left: auto; right: 3px; max-width: 85%;
+      background: #eaf0ff; border-radius: 16px 16px 4px 16px;
+    }
+    #chat-bubble .speech-bubble[data-kind="error"] { border-color: #d89b62; }
+    #chat-bubble .speech-bubble.entering { opacity: 0; transform: translateY(calc(var(--bubble-y, 0px) + 14px)); }
+    #chat-bubble .speech-bubble.leaving { opacity: 0; pointer-events: none; transform: translateY(calc(var(--bubble-y, 0px) - 16px)); }
+    .speech-author { color: var(--theme); font-size: 11px; margin-bottom: 4px; flex-shrink: 0; }
+    .speech-outcome { align-self: flex-start; flex-shrink: 0; margin: 0 0 7px; padding: 2px 8px;
+      border-radius: 8px; font-size: 11px; color: #286f5c; background: rgba(88,177,145,.16); }
+    .speech-outcome[hidden] { display: none; }
+    .speech-outcome[data-status="failed"] { color: #a64e49; background: rgba(206,100,91,.14); }
+    .speech-outcome[data-status="partial"], .speech-outcome[data-status="uncertain"] {
+      color: #94662a; background: rgba(209,157,73,.17); }
+    .speech-body {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      min-height: 0;
+      overflow-y: auto;
+      flex: 1;
+      user-select: text;
+    }
+    .speech-body::-webkit-scrollbar { width: 3px; height: 3px; }
+    .speech-body::-webkit-scrollbar-thumb { background: var(--theme-shadow); border-radius: 2px; }
+    .speech-body.markdown-body { white-space: normal; line-height: 1.65; }
+    .pending .speech-body { opacity: .65; }
+    .markdown-body p { margin: 0 0 .65em; }
+    .markdown-body strong { font-weight: 700; }
+    .markdown-body ul, .markdown-body ol { margin: .4em 0 .7em; padding-left: 1.6em; }
+    .markdown-body li { margin: .25em 0; }
+    .markdown-body li > p { margin: .25em 0; }
+    .markdown-body li > ul, .markdown-body li > ol { margin: .25em 0; }
+    .markdown-body h1, .markdown-body h2, .markdown-body h3,
+    .markdown-body h4, .markdown-body h5, .markdown-body h6 { margin: .8em 0 .4em; line-height: 1.4; }
+    .markdown-body h1 { font-size: 1.35em; }
+    .markdown-body h2 { font-size: 1.2em; }
+    .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 { font-size: 1.05em; }
+    .markdown-body code { font: .92em/1.5 Consolas, monospace; background: rgba(127,127,127,.14); padding: .1em .3em; border-radius: 4px; }
+    .markdown-body pre { margin: .6em 0; padding: 10px; border-radius: 7px; background: rgba(127,127,127,.12); overflow-x: auto; white-space: pre; }
+    .markdown-body pre code { background: none; padding: 0; border-radius: 0; }
+    .markdown-body blockquote { margin: .6em 0; padding-left: 10px; border-left: 3px solid var(--theme); }
+    .markdown-body hr { border: 0; border-top: 1px solid rgba(127,127,127,.3); margin: .8em 0; }
+    .markdown-body table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: .6em 0; }
+    .markdown-body th, .markdown-body td { border: 1px solid rgba(127,127,127,.35); padding: 5px 9px; min-width: 64px; }
+    .markdown-body th { background: rgba(127,127,127,.12); }
+    .markdown-body a { color: var(--theme); text-decoration: underline; overflow-wrap: anywhere; }
+    .markdown-body > :first-child { margin-top: 0; }
+    .markdown-body > :last-child { margin-bottom: 0; }
+    .reply-warning { margin-top: .8em; padding-top: .6em; border-top: 1px solid rgba(127,127,127,.3); opacity: .8; }
+    .campus-only #portrait-stage { top: calc(var(--campus-reply-space) + 8px); bottom: calc(var(--bar) + 18px); }
+    .campus-only #window-drag-handle { top: calc(var(--campus-reply-space) + 8px); }
+    .campus-only #window-zoom-in { top: calc(var(--campus-reply-space) + 42px); }
+    .campus-only #window-zoom-out { top: calc(var(--campus-reply-space) + 76px); }
+    .campus-only #window-scale-label { top: calc(var(--campus-reply-space) + 110px); }
+    #new-conversation-btn {
+      height: var(--bar); min-width: var(--bar); padding: 0 7px;
+      border: 2px solid var(--theme-light); border-radius: 14px;
+      color: var(--theme); background: #fff; cursor: pointer; flex-shrink: 0;
+    }
+    #stop-speech-btn {
+      width: var(--bar); height: var(--bar); flex-shrink: 0;
+      border: 2px solid var(--theme-light); border-radius: 50%;
+      background: #fff; color: var(--theme); cursor: pointer;
+    }
+    #stop-speech-btn[hidden] { display: none; }
+    #chat-controls {
+      position: absolute; left: 10px; right: 10px; bottom: calc(var(--bar) + 16px);
+      display: flex; align-items: center; gap: 6px; pointer-events: all; z-index: 16;
+    }
+    #chat-mode, #stop-request-btn {
+      font: inherit; font-size: 12px; color: #335cad; background: #fff;
+      border: 1px solid var(--theme-light); border-radius: 9px; padding: 5px 7px;
+    }
+    #chat-status { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-size: 11px; color: #496693; background: rgba(255,255,255,.92); border-radius: 7px; padding: 3px 6px; }
+    #stop-request-btn[hidden] { display: none; }
+    @media (prefers-color-scheme: dark) {
+      #chat-bubble .speech-bubble { background: rgba(30,32,44,.97); color: #eee; border-color: rgba(150,165,210,.3); }
+      #chat-bubble .speech-bubble[data-kind="user"] { background: #303c59; }
+      .speech-outcome { color: #92d5bb; }
+      .speech-outcome[data-status="failed"] { color: #f1aaa1; }
+      .speech-outcome[data-status="partial"], .speech-outcome[data-status="uncertain"] { color: #e2c08c; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #chat-bubble .speech-bubble { transition: opacity .15s; }
+    }
+
+
+    /* ─── 窗口拖动手柄 ─────────────────────────────────────── */
+    #window-drag-handle {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      background: #ffffff;
+      border: 2px solid var(--theme-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: move;
+      z-index: 20;
+      opacity: 0;
+      transition: opacity 0.2s, background 0.2s, border-color 0.2s;
+      pointer-events: none;
+    }
+    #window-drag-handle.visible { opacity: 1; pointer-events: all; }
+    #window-drag-handle:hover { background: var(--theme-bg); border-color: var(--theme); }
+    #window-drag-handle svg { width: 13px; height: 13px; }
+    #window-drag-handle svg path { fill: var(--theme); }
+
+    /* ─── 窗口缩放按钮 ─────────────────────────────────────── */
+    .window-zoom-btn {
+      position: absolute;
+      left: 6px;
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      background: #ffffff;
+      border: 2px solid var(--theme-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 20;
+      opacity: 0;
+      transition: opacity 0.2s, background 0.2s, border-color 0.2s;
+      pointer-events: none;
+      color: var(--theme);
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1;
+      user-select: none;
+      padding: 0;
+      font-family: inherit;
+    }
+    .window-zoom-btn.visible { opacity: 1; pointer-events: all; }
+    .window-zoom-btn:hover { background: var(--theme-bg); border-color: var(--theme); }
+    .window-zoom-btn.visible:disabled { opacity: 0.35; cursor: not-allowed; }
+    #window-zoom-in  { top: 38px; }
+    #window-zoom-out { top: 70px; }
+
+    #window-scale-label {
+      position: absolute;
+      left: 38px;
+      top: 44px;
+      font-size: 11px;
+      color: var(--theme);
+      background: #ffffff;
+      border: 1px solid var(--theme-light);
+      border-radius: 6px;
+      padding: 1px 6px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 21;
+      white-space: nowrap;
+    }
+    #window-scale-label.visible { opacity: 1; }
+
+    /* 拖动人物移动窗口、滚轮缩放，不再显示悬浮控制按钮。 */
+    #window-drag-handle,
+    #window-zoom-in,
+    #window-zoom-out,
+    #window-scale-label { display: none; }
+
+    /* ─── 底部聊天输入区 ───────────────────────────────────── */
+    #chat-area {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 6px 10px;
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      background: transparent;
+      pointer-events: all;
+      z-index: 15;
+    }
+    #chat-input {
+      flex: 1;
+      min-width: 0;
+      height: var(--bar);
+      border: 2px solid var(--theme-light);
+      border-radius: calc(var(--bar) / 2);
+      padding: 0 14px;
+      background: #ffffff;
+      color: #333;
+      font-size: calc(var(--bar) * 0.46);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    #chat-input::placeholder { color: #9bb6dc; }
+    #chat-input:focus { border-color: var(--theme); }
+
+    #send-btn, #settings-btn {
+      width: var(--bar); height: var(--bar);
+      border: 2px solid var(--theme-light);
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, border-color 0.2s, transform 0.1s;
+      flex-shrink: 0;
+    }
+    #send-btn:active, #settings-btn:active {
+      transform: scale(0.94);
+    }
+    #send-btn svg, #settings-btn svg {
+      width: calc(var(--bar) * 0.57);
+      height: calc(var(--bar) * 0.57);
+    }
+    #send-btn svg path { fill: #ffffff; }
+    #settings-btn svg path { fill: var(--theme); }
+
+    #send-btn {
+      background: var(--theme-gradient);
+      border-color: var(--theme);
+    }
+    #send-btn:hover { background: var(--theme-dark); border-color: var(--theme-dark); }
+    #send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #settings-btn { background: #ffffff; }
+    #settings-btn:hover { background: var(--theme-bg); border-color: var(--theme); }
+
+  </style>
+  <link rel="stylesheet" href="./portrait-pet.css">
+</head>
+<body class="campus-only">
+
+  <!-- 层 1：人物渲染层 -->
+  <div id="portrait-stage">
+    <img id="custom-pet-image" src="" alt="">
+  </div>
+
+  <!-- 层 2：UI 叠加层 -->
+  <div id="ui-layer">
+
+    <!-- 聊天气泡 -->
+    <div id="chat-bubble" class="campus-mode" role="log" aria-live="polite" aria-label="与智小理的对话"></div>
+
+    <!-- 窗口控制：拖拽手柄、缩放按钮 -->
+    <div id="window-drag-handle" title="拖动移动窗口">
+      <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M486.4 776.533333v-213.333333H247.466667v106.666667L85.333333 512l162.133334-162.133333V512h238.933333V247.466667H349.866667L512 85.333333l162.133333 162.133334h-132.266666V512h238.933333V349.866667L938.666667 512l-162.133334 162.133333v-106.666666h-238.933333v213.333333h132.266667L512 938.666667l-162.133333-162.133334h136.533333z"/></svg>
+    </div>
+    <button id="window-zoom-in"  class="window-zoom-btn" title="放大窗口">+</button>
+    <button id="window-zoom-out" class="window-zoom-btn" title="缩小窗口">−</button>
+    <div id="window-scale-label"></div>
+
+    <!-- 底部聊天输入区 -->
+    <div id="chat-controls">
+      <select id="chat-mode" aria-label="对话模式" title="两种模式分别保存会话和上下文" disabled>
+        <option value="campus">校园业务</option><option value="study">通用学习</option>
+      </select>
+      <span id="chat-status" role="status">正在加载会话…</span>
+      <button id="stop-request-btn" hidden>停止请求</button>
+    </div>
+    <div id="chat-area">
+      <button id="new-conversation-btn" title="新建对话，保留长期记忆，不撤销已有预约">新会话</button>
+      <input type="text" id="chat-input" placeholder="和智小理说点什么…" autocomplete="off" maxlength="8000">
+      <button id="stop-speech-btn" title="停止朗读" aria-label="停止朗读">■</button>
+      <button id="send-btn" title="发送"><svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M512 960A448 448 0 1 0 512 64a448 448 0 0 0 0 896z m0 64A512 512 0 1 1 512 0a512 512 0 0 1 0 1024z"/><path d="M448 422.656v217.088L621.632 531.2 448 422.656z m14.336 283.584A51.2 51.2 0 0 1 384 662.848V399.552a51.2 51.2 0 0 1 78.336-43.392l210.56 131.648a51.2 51.2 0 0 1 0 86.784l-210.56 131.648z"/></svg></button>
+      <button id="settings-btn" title="设置"><svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M449.194667 82.346667a128 128 0 0 1 125.610666 0l284.16 160a128 128 0 0 1 65.194667 111.530666v316.245334a128 128 0 0 1-65.194667 111.530666l-284.16 160a128 128 0 0 1-125.610666 0l-284.16-160a128 128 0 0 1-65.194667-111.530666V353.877333A128 128 0 0 1 165.034667 242.346667z m83.754666 74.410666a42.666667 42.666667 0 0 0-41.898666 0L206.933333 316.714667a42.666667 42.666667 0 0 0-21.76 37.162666v316.245334a42.666667 42.666667 0 0 0 21.76 37.162666l284.16 160a42.666667 42.666667 0 0 0 41.898667 0l284.16-160a42.666667 42.666667 0 0 0 21.76-37.162666V353.877333a42.666667 42.666667 0 0 0-21.76-37.162666zM512 341.333333a170.666667 170.666667 0 1 1 0 341.333334 170.666667 170.666667 0 0 1 0-341.333334z m0 85.333334a85.333333 85.333333 0 1 0 0 170.666666 85.333333 85.333333 0 0 0 0-170.666666z"/></svg></button>
+    </div>
+
+
+  </div><!-- /ui-layer -->
+
+  <script src="./campus-feedback.js"></script>
+  <script src="./portrait-blink.js"></script>
+  <script src="./portrait-mouth.js"></script>
+  <script src="./portrait-wave.js"></script>
+  <script src="../assets/zhixiaoli/layered/rig.js"></script>
+  <script src="./portrait-mesh.js"></script>
+  <script src="./portrait-layered.js"></script>
+  <script src="./portrait-pet.js"></script>
+  <script src="../services/campus-answer.js"></script>
+  <script src="../libs/marked.umd.js"></script>
+  <script src="../libs/purify.min.js"></script>
+  <script src="./campus-markdown.js"></script>
+  <script src="./campus-bubbles.js"></script>
+  <script src="./campus-speech.js"></script>
+  <script src="./campus-chat.js"></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+/* Single portrait, subtle idle motion, and explicit click/reply gestures. */
+#portrait-pet { position: absolute; inset: 12px 18px 10px; --voice-energy: 0; pointer-events: none; }
+.portrait-motion, .portrait-breath, .portrait-voice { width: 100%; height: 100%; transform-origin: 50% 94%; }
+.portrait-motion { animation: portrait-idle 7s ease-in-out infinite; }
+.portrait-breath { animation: portrait-breathe 4.4s ease-in-out infinite; }
+.portrait-voice { position: relative; transform: translateY(calc(var(--voice-energy) * -2px)) scale(calc(1 + var(--voice-energy) * .007)); transition: transform 70ms linear; }
+.portrait-blink, .portrait-mouth { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+#portrait-pet .portrait-layered { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: auto; cursor: grab; }
+#portrait-pet .portrait-layered[hidden] { display: none; }
+#portrait-pet.layered #custom-pet-image { visibility: hidden; }
+#portrait-pet.layered .portrait-blink, #portrait-pet.layered .portrait-mouth, #portrait-pet.layered .portrait-wave { display: none; }
+#portrait-pet.layered .portrait-motion, #portrait-pet.layered .portrait-breath { animation: none; }
+#portrait-pet.layered .portrait-voice { transform: none; }
+#portrait-pet.dragging .portrait-layered { cursor: grabbing; }
+#portrait-pet .portrait-wave { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: auto; cursor: grab; }
+#portrait-pet .portrait-wave[hidden] { display: none; }
+#portrait-pet.waving #custom-pet-image { visibility: hidden; }
+#portrait-pet.waving .portrait-motion, #portrait-pet.waving .portrait-breath { animation-play-state: paused; }
+#portrait-pet.dragging .portrait-wave { cursor: grabbing; }
+#portrait-pet #custom-pet-image { position: static; display: block; width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; transform: none; opacity: 0; transition: opacity .3s; pointer-events: auto; cursor: grab; -webkit-user-drag: none; user-select: none; filter: drop-shadow(0 7px 8px rgba(28,57,110,.12)); }
+#portrait-pet #custom-pet-image.portrait-loaded { opacity: 1; }
+#portrait-pet.dragging #custom-pet-image { cursor: grabbing; }
+#portrait-pet.dragging .portrait-motion { animation-play-state: paused; }
+#portrait-pet.waiting .portrait-motion { animation: portrait-thinking 2.4s ease-in-out infinite; }
+#portrait-pet.layered.waiting .portrait-motion { animation: none; }
+#portrait-pet.waiting .portrait-breath, #portrait-pet.speaking .portrait-breath { animation-play-state: paused; }
+#portrait-pet.speaking .portrait-motion:not(.action-bounce):not(.action-sway):not(.action-nod) { animation-play-state: paused; }
+#portrait-pet .portrait-motion.action-bounce { animation: portrait-bounce .85s ease both; }
+#portrait-pet .portrait-motion.action-sway { animation: portrait-sway .9s ease both; }
+#portrait-pet .portrait-motion.action-nod { animation: portrait-nod .8s ease both; }
+.portrait-wait { position: absolute; right: 8%; top: 16%; display: flex; gap: 5px; padding: 10px 12px; border-radius: 16px 16px 16px 3px; background: rgba(255,255,255,.95); box-shadow: 0 4px 18px rgba(55,92,150,.12); }
+.portrait-wait[hidden] { display: none; }
+.portrait-wait span { width: 5px; height: 5px; border-radius: 50%; background: #5b8cff; animation: portrait-dot 1s ease-in-out infinite; }
+.portrait-wait span:nth-child(2) { animation-delay: .15s; }
+.portrait-wait span:nth-child(3) { animation-delay: .3s; }
+.portrait-sparkles { position: absolute; inset: 0; pointer-events: none; }
+.portrait-sparkles i { position: absolute; top: 20%; left: 18%; font-style: normal; font-size: 24px; color: #6b9cff; opacity: 0; }
+.portrait-sparkles i:nth-child(2) { top: 12%; left: 70%; color: #f1c66b; font-size: 28px; }
+.portrait-sparkles i:nth-child(3) { top: 43%; left: 78%; font-size: 17px; }
+.show-sparkles .portrait-sparkles i { animation: portrait-spark .85s ease both; }
+.show-sparkles .portrait-sparkles i:nth-child(2) { animation-delay: .07s; }
+.show-sparkles .portrait-sparkles i:nth-child(3) { animation-delay: .12s; }
+@keyframes portrait-idle { 0%,100% { transform: rotate(-.45deg); } 50% { transform: rotate(.45deg) translateY(-2px); } }
+@keyframes portrait-breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.005,1.014); } }
+@keyframes portrait-thinking { 0%,100% { transform: rotate(-1.1deg); } 50% { transform: rotate(.65deg) translateY(-2px); } }
+@keyframes portrait-bounce { 0%,100% { transform: translateY(0) scale(1); } 18% { transform: translateY(2px) scale(1.02,.98); } 45% { transform: translateY(-15px) rotate(-1.5deg) scale(.99,1.02); } 72% { transform: translateY(1px) scale(1.01,.99); } }
+@keyframes portrait-sway { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-3deg); } 65% { transform: rotate(2.5deg); } }
+@keyframes portrait-nod { 0%,100% { transform: scaleY(1) rotate(0); } 35% { transform: scaleY(.975) rotate(1.1deg) translateY(3px); } 70% { transform: scaleY(1.005) rotate(-.5deg); } }
+@keyframes portrait-spark { 0% { opacity: 0; transform: translateY(7px) scale(.5); } 35% { opacity: 1; transform: translateY(-5px) scale(1); } 100% { opacity: 0; transform: translateY(-22px) scale(.7); } }
+@keyframes portrait-dot { 0%,80%,100% { opacity: .35; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) {
+  .portrait-motion, .portrait-breath, #portrait-pet.waiting .portrait-motion { animation: none; }
+  .portrait-voice { transform: none; }
+}

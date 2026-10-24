@@ -1,0 +1,54 @@
+{
+  "agent": {
+    "mode": "campus"
+  },
+  "study": {
+    "provider": "qwen",
+    "api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "api_key": "",
+    "model": "qwen-plus",
+    "timeout_seconds": 120,
+    "context_rounds": 12,
+    "max_rounds": 6
+  },
+  "chaoxing": {
+    "enabled": true,
+    "phone": "",
+    "password_encrypted": ""
+  },
+  "speech": {
+    "enabled": true,
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "rate": 0
+  },
+  "window": {
+    "scale": 1
+  },
+  "ui": {
+    "layered_portrait": true,
+    "custom_image": "",
+    "theme_color": "#5B8CFF",
+    "font_size": 13
+  },
+  "memory": {
+    "enabled": true,
+    "api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "api_key": "",
+    "model": "qwen-flash",
+    "context_rounds": 3
+  },
+  "timetable": {
+    "api_base": "",
+    "api_key": "",
+    "model": "qwen3-vl-plus"
+  },
+  "debug": {
+    "enabled": false
+  },
+  "campus": {
+    "timeout_seconds": 120,
+    "enabled": true,
+    "api_key": "",
+    "user": ""
+  }
+}

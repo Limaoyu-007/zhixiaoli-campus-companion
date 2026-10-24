@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<!-- Campus-only settings, 2026-10-22. -->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>智小理设置</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f6f8fc; color: #26324a; font: 14px/1.6 'Microsoft YaHei', sans-serif; }
+    body { height: 100vh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; }
+    header { background: #fff; border-bottom: 1px solid #e0e6f0; padding: 18px 24px 14px; }
+    header p { margin: 0; }
+    .layout { display: grid; grid-template-columns: 142px minmax(0, 1fr); min-height: 0; }
+    nav { padding: 18px 12px; border-right: 1px solid #e0e6f0; background: #f1f4fa; overflow-y: auto; }
+    nav button { display: block; width: 100%; text-align: left; margin-bottom: 7px; background: transparent; border-color: transparent; }
+    nav button[aria-current=page] { color: #2e60ce; background: #e3ecff; font-weight: 600; }
+    main { padding: 20px 22px; overflow-y: auto; }
+    h2 { margin: 0 0 4px; font-size: 20px; }
+    section { background: #fff; padding: 16px; border-radius: 12px; margin-bottom: 14px; }
+    h3 { margin: 0 0 12px; font-size: 17px; }
+    h4 { margin: 22px 0 8px; padding-top: 16px; border-top: 1px solid #e7ecf4; font-size: 14px; }
+    section[hidden] { display: none; }
+    label { display: block; margin-top: 12px; }
+    input { width: 100%; padding: 8px 10px; margin-top: 5px; border: 1px solid #d5def0; border-radius: 7px; font: inherit; }
+    input[type=color] { height: 38px; }
+    input[type=checkbox] { width: auto; margin-right: 6px; }
+    select { width: 100%; padding: 8px; border: 1px solid #d5def0; border-radius: 7px; margin-top: 5px; font: inherit; }
+    textarea { width: 100%; padding: 8px 10px; margin-top: 5px; border: 1px solid #d5def0; border-radius: 7px; font: inherit; resize: vertical; }
+    button { padding: 8px 14px; border: 1px solid #d5def0; border-radius: 8px; background: white; color: #335cad; cursor: pointer; font: inherit; }
+    button:hover { background: #edf3ff; }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #b5ccff; outline-offset: 2px; }
+    #save { background: #4779e9; color: white; border-color: #4779e9; min-width: 110px; }
+    button:disabled { opacity: .5; }
+    p { margin: 8px 0; color: #77849b; font-size: 12px; }
+    #image-preview { display: block; max-width: 100%; height: 90px; object-fit: contain; margin: 10px auto; }
+    #image-preview[hidden] { display: none; }
+    footer { display: flex; gap: 16px; align-items: center; background: #fff; border-top: 1px solid #e0e6f0; padding: 12px 22px; }
+    #status { flex: 1; color: #335cad; white-space: pre-wrap; max-height: 70px; overflow: auto; font-size: 12px; }
+    #save-state { display: block; font-weight: 600; font-size: 13px; }
+    #status.error { color: #b13d4c; }
+    .row { display: flex; gap: 10px; }
+    .memory-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    #memory-status { color: #335cad; white-space: pre-wrap; }
+    #memory-clear { color: #a55050; }
+    #debug-info { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .notice { padding: 10px 12px; background: #f0f5ff; border-radius: 8px; color: #58729d; }
+  </style>
+</head>
+<body>
+  <header><h2>智小理设置</h2><p>修改各项配置与资料后，统一点击右下角“保存更改”。</p></header>
+  <div class="layout">
+  <nav aria-label="设置分类">
+    <button data-tab="campus" aria-current="page">校园对话</button>
+    <button data-tab="study">通用学习</button>
+    <button data-tab="chaoxing">学习通</button>
+    <button data-tab="memory">长期记忆</button>
+    <button data-tab="timetable">我的课表</button>
+    <button data-tab="appearance">形象与显示</button>
+    <button data-tab="speech">回复朗读</button>
+    <button data-tab="debug">开发调试</button>
+  </nav>
+  <main>
+  <section data-panel="chaoxing" hidden>
+    <h3>学习通作业查询</h3>
+    <label><input id="chaoxing-enabled" type="checkbox" checked>启用学习通查询工具</label>
+    <p>仅在通用学习模式中使用。查询指定课程的作业名称、页面提交状态和完成进度；不提交作业，也不扫描全部课程。</p>
+    <label>学习通手机号 / 账号<input id="chaoxing-phone" autocomplete="off" maxlength="80" placeholder="填写用于学习通登录的账号"></label>
+    <label>学习通密码<input id="chaoxing-password" type="password" autocomplete="new-password" maxlength="256" placeholder="留空沿用同一账号已保存的密码"></label>
+    <label><input id="chaoxing-clear-password" type="checkbox">删除本机保存的学习通密码</label>
+    <p id="chaoxing-status"></p>
+    <p>密码通过系统安全存储加密后保存在本机配置，不回填页面、不发送给模型。更换账号后须重新输入密码；修改学习通配置会停止当前通用学习请求。保存配置不会登录，首次查询时登录，Cookie仅保留在内存中。</p>
+    <p>也可同时设置 CHAOXING_PHONE 和 CHAOXING_PASSWORD 环境变量，优先于本页账号密码；只设置其中一个时不会与本页另一项混用。</p>
+    <p>如学习通要求验证码或额外验证，会明确提示，不会自动绕过验证。可先在官方客户端处理验证后再尝试查询。</p>
+  </section>
+  <section data-panel="study" hidden>
+    <h3>通用学习模式</h3>
+    <p class="notice">由本机管理对话上下文和工具调用，使用你配置的模型服务。聊天窗口可随时切换模式，两种模式分别保存会话。</p>
+    <label>模型厂家<select id="study-provider"><option value="qwen">阿里云百炼 / 千问</option><option value="deepseek">DeepSeek</option><option value="custom">其他兼容接口</option></select></label>
+    <p>当前支持 Chat Completions 兼容接口及其工具调用格式。其他协议的厂家尚未接入。</p>
+    <label>模型 API Key<input id="study-key" type="password" autocomplete="new-password" placeholder="留空沿用已有凭据"></label>
+    <p id="study-key-status"></p>
+    <label><input id="study-clear-key" type="checkbox">删除已保存的通用学习密钥</label>
+    <label>模型接口地址<input id="study-base" type="url" spellcheck="false" placeholder="https://…/v1"></label>
+    <p>切换厂家会填入公共示例地址与模型名，请按账户实际信息调整。百炼也可填写业务空间专属地址。本机接口可用 HTTP。</p>
+    <label>对话模型<input id="study-model" spellcheck="false" placeholder="填写支持工具调用的模型名称"></label>
+    <div class="row">
+      <label>每次携带最近几轮<input id="study-context-rounds" type="number" min="1" max="30" value="12"></label>
+      <label>模型与工具阶段超时（秒）<input id="study-timeout" type="number" min="10" max="300" value="120"></label>
+      <label>单次模型调用上限<input id="study-max-rounds" type="number" min="1" max="8" value="6"></label>
+    </div>
+    <h4>已接入工具</h4>
+    <p>北京时间、个人课表、学习通指定课程作业查询，均为只读工具。学习通账号在左侧“学习通”配置。调用时聊天窗口会显示进度；网络搜索和文件操作尚未接入。</p>
+    <p>本次会话的对话和工具记录保存在本机，近期上下文会发给这里配置的模型。长期记忆启用时，共用“长期记忆”中的学生资料、近期事项与整理配置；新会话首条消息前会尝试整理旧对话，可能额外等待最多25秒。</p>
+    <p>每次重启都会新建通用学习会话；点击“新会话”也会清空当前对话上下文，已保存的长期记忆保留。切换模式不会新建会话。</p>
+  </section>
+  <section data-panel="timetable" hidden>
+    <h3>我的课表</h3>
+    <p>导入课表图片或 PDF，识别、修改后保存在本机。校园模式每次聊天附上课表文字；通用学习模式由模型按需调用工具读取。</p>
+    <button id="open-timetable">管理我的课表</button>
+    <h4>百炼课表识别</h4>
+    <p>使用视觉模型。Key和接口地址留空时沿用长期记忆配置，模型单独设置。</p>
+    <label>百炼 API Key<input id="timetable-key" type="password" autocomplete="new-password" placeholder="留空沿用已有凭据"></label>
+    <p id="timetable-key-status"></p>
+    <label>百炼接口地址<input id="timetable-base" type="url" spellcheck="false" placeholder="留空沿用长期记忆接口地址"></label>
+    <label>视觉模型<input id="timetable-model" value="qwen3-vl-plus" spellcheck="false"></label>
+    <p>模型须支持图片输入、非思考模式和JSON输出。此处修改后点击右下角“保存更改”。</p>
+  </section>
+  <section data-panel="campus">
+    <h3>校园对话</h3>
+    <label>校园 API Key<input id="api-key" type="password" autocomplete="new-password" placeholder="留空沿用已有凭据"></label>
+    <p id="key-status"></p>
+    <label>平台用户标识<input id="platform-user" placeholder="留空使用本机自动生成的标识"></label>
+    <p>每次启动都会新建对话，并在首次提问时带入本机长期记忆。更改标识也会开启新会话。</p>
+    <label>等待超时（秒）<input id="timeout" type="number" min="10" max="300" value="120"></label>
+  </section>
+  <section data-panel="memory" hidden>
+    <h3>长期记忆</h3>
+    <label><input id="memory-enabled" type="checkbox" checked>启用长期记忆</label>
+    <p>校园业务与通用学习共用这份本机资料和摘要。启用后，两种模式的成功对话都会交给这里配置的百炼模型整理；使用记忆时，会将资料和摘要发给当前模式的聊天模型。不分析性格或品质。</p>
+    <label>百炼 API Key<input id="memory-key" type="password" autocomplete="new-password" placeholder="留空沿用已有凭据"></label>
+    <p id="memory-key-status"></p>
+    <label>百炼接口地址<input id="memory-base" type="url" spellcheck="false" value="https://dashscope.aliyuncs.com/compatible-mode/v1"></label>
+    <p>填写控制台对应地域的 OpenAI 兼容地址；也可填写业务空间专属地址。</p>
+    <label>记忆整理模型<input id="memory-model" value="qwen-flash" spellcheck="false"></label>
+    <p>使用支持非思考模式与 JSON 输出的千问模型。</p>
+    <label>每几轮对话自动整理<input id="memory-rounds" type="number" min="1" max="20" value="3"></label>
+    <h4>学生资料与近期事项</h4>
+    <p id="memory-info">正在读取本地记忆…</p>
+    <label>学生资料<textarea id="memory-facts" rows="5" placeholder="用户称呼：小林&#10;专业：软件工程&#10;年级：大二" disabled></textarea></label>
+    <p id="memory-fact-keys"></p>
+    <label>近期事项摘要<textarea id="memory-summary" rows="4" maxlength="300" placeholder="暂时没有近期事项，可自动整理，也可手动填写。" disabled></textarea></label>
+    <p>每行一条“字段：内容”，留空可删除。编辑后统一点击“保存更改”；保存资料时移除待整理记录。校园模式在新会话使用修改后的资料，通用学习在下次提问更新背景。修改或关闭记忆不能移除当前对话里已经提过的信息，需要时新建会话。</p>
+    <div class="memory-actions">
+      <button id="memory-summarize" disabled>立即整理</button>
+      <button id="memory-refresh">重新读取资料</button>
+      <button id="memory-clear" disabled>清空记忆</button>
+    </div>
+    <p id="memory-status" role="status"></p>
+  </section>
+  <section data-panel="appearance" hidden>
+    <h3>形象与显示</h3>
+    <label>人物效果<select id="portrait-renderer"><option value="layered">分层动作预览</option><option value="portrait">原立绘效果</option></select></label>
+    <p>分层预览使用智小理素材，支持眨眼、视线和头发摆动。选择自定义图片时使用图片效果。</p>
+    <img id="image-preview" alt="角色预览" hidden>
+    <div class="row"><button id="choose-image">选择图片</button><button id="reset-image">恢复智小理形象</button></div>
+    <label>回复字号<input id="font-size" type="number" min="11" max="20" value="13"></label>
+    <label>主题色<input id="theme" type="color" value="#5b8cff"></label>
+  </section>
+  <section data-panel="speech" hidden>
+    <h3>回复朗读</h3>
+    <label><input id="speech-enabled" type="checkbox" checked>自动朗读智小理的回复</label>
+    <label>声音<select id="speech-voice"><option value="zh-CN-XiaoxiaoNeural">晓晓 · 女声</option><option value="zh-CN-YunxiNeural">云希 · 男声</option></select></label>
+    <label>语速（-30～30，0为正常）<input id="speech-rate" type="number" min="-30" max="30" value="0"></label>
+    <p>使用 Edge TTS 在线生成语音。输入新消息、新建会话或点击“停止朗读”会停止当前朗读。</p>
+  </section>
+  <section data-panel="debug" hidden>
+    <h3>开发调试</h3>
+    <label><input id="debug-enabled" type="checkbox">记录对话调试日志</label>
+    <p>记录提问、实际发送的记忆/课表背景、回复、请求耗时及错误，按请求ID关联。源码启动时默认开启，正式安装包默认关闭。</p>
+    <p class="notice">日志保留对话文字及个人资料，供本机开发排障使用。API Key、常见密码和Token会做脱敏；分享前请检查内容。</p>
+    <div class="memory-actions"><button id="debug-open">打开日志目录</button><button id="debug-export">导出调试日志</button><button id="debug-refresh">刷新状态</button></div>
+    <p id="debug-info">正在读取日志状态…</p>
+  </section>
+  </main></div>
+  <footer><div id="status" role="status"><span id="save-state">正在读取设置…</span><span id="save-detail"></span></div><button id="save" disabled>保存更改</button></footer>
+<script src="./campus-settings.js"></script></body>
+</html>

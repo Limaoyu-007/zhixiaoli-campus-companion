@@ -1,0 +1,186 @@
+// Derived from the user-provided PSD; coordinates remain in source canvas space.
+window.ZhixiaoliLayeredRig = {
+  "version": 1,
+  "width": 768,
+  "height": 768,
+  "source": "seethrough_output.psd",
+  "maskApplied": true,
+  "parts": [
+    {
+      "id": "back-hair",
+      "file": "back-hair.png",
+      "x": 148,
+      "y": 0,
+      "width": 470,
+      "height": 467
+    },
+    {
+      "id": "footwear-left",
+      "file": "footwear-left.png",
+      "x": 295,
+      "y": 675,
+      "width": 77,
+      "height": 93
+    },
+    {
+      "id": "footwear-right",
+      "file": "footwear-right.png",
+      "x": 405,
+      "y": 674,
+      "width": 75,
+      "height": 93
+    },
+    {
+      "id": "legwear-left",
+      "file": "legwear-left.png",
+      "x": 302,
+      "y": 456,
+      "width": 74,
+      "height": 248
+    },
+    {
+      "id": "legwear-right",
+      "file": "legwear-right.png",
+      "x": 380,
+      "y": 456,
+      "width": 87,
+      "height": 248
+    },
+    {
+      "id": "headwear",
+      "file": "headwear.png",
+      "x": 431,
+      "y": 105,
+      "width": 66,
+      "height": 198
+    },
+    {
+      "id": "handwear-left",
+      "file": "handwear-left.png",
+      "x": 219,
+      "y": 297,
+      "width": 124,
+      "height": 227
+    },
+    {
+      "id": "handwear-right",
+      "file": "handwear-right.png",
+      "x": 421,
+      "y": 297,
+      "width": 125,
+      "height": 227
+    },
+    {
+      "id": "bottomwear",
+      "file": "bottomwear.png",
+      "x": 276,
+      "y": 386,
+      "width": 211,
+      "height": 132
+    },
+    {
+      "id": "neck",
+      "file": "neck.png",
+      "x": 365,
+      "y": 221,
+      "width": 36,
+      "height": 76
+    },
+    {
+      "id": "topwear",
+      "file": "topwear.png",
+      "x": 303,
+      "y": 270,
+      "width": 156,
+      "height": 159
+    },
+    {
+      "id": "face",
+      "file": "face.png",
+      "x": 286,
+      "y": 85,
+      "width": 176,
+      "height": 185
+    },
+    {
+      "id": "mouth",
+      "file": "mouth.png",
+      "x": 364,
+      "y": 235,
+      "width": 32,
+      "height": 23
+    },
+    {
+      "id": "eyebrow-left",
+      "file": "eyebrow-left.png",
+      "x": 301,
+      "y": 166,
+      "width": 44,
+      "height": 17
+    },
+    {
+      "id": "eyebrow-right",
+      "file": "eyebrow-right.png",
+      "x": 392,
+      "y": 159,
+      "width": 50,
+      "height": 12
+    },
+    {
+      "id": "eyewhite-left",
+      "file": "eyewhite-left.png",
+      "x": 311,
+      "y": 197,
+      "width": 44,
+      "height": 38
+    },
+    {
+      "id": "eyewhite-right",
+      "file": "eyewhite-right.png",
+      "x": 397,
+      "y": 188,
+      "width": 45,
+      "height": 38
+    },
+    {
+      "id": "irides-left",
+      "file": "irides-left.png",
+      "x": 320,
+      "y": 199,
+      "width": 33,
+      "height": 36
+    },
+    {
+      "id": "irides-right",
+      "file": "irides-right.png",
+      "x": 399,
+      "y": 190,
+      "width": 33,
+      "height": 36
+    },
+    {
+      "id": "eyelash-left",
+      "file": "eyelash-left.png",
+      "x": 300,
+      "y": 188,
+      "width": 54,
+      "height": 40
+    },
+    {
+      "id": "eyelash-right",
+      "file": "eyelash-right.png",
+      "x": 396,
+      "y": 180,
+      "width": 55,
+      "height": 35
+    },
+    {
+      "id": "front-hair",
+      "file": "front-hair.png",
+      "x": 255,
+      "y": 51,
+      "width": 257,
+      "height": 280
+    }
+  ]
+};
