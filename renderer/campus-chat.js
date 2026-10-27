@@ -7,7 +7,6 @@ const sendButton = document.getElementById('send-btn');
 const newButton = document.getElementById('new-conversation-btn');
 const modeSelect = document.getElementById('chat-mode');
 const chatStatus = document.getElementById('chat-status');
-const stopRequestButton = document.getElementById('stop-request-btn');
 const bubble = document.getElementById('chat-bubble');
 const stream = new window.CampusBubbles(bubble);
 let pendingBubble = null;
@@ -30,12 +29,21 @@ let switching = false;
 let configReady = false;
 const drafts = { campus: '', study: '' };
 
-function idleStatus() { return mode === 'study' ? '本地 Runtime · 学习工具' : '学校 Agent 平台'; }
+function idleStatus() { return '可以发送消息'; }
+function resizeInput() {
+  input.style.height = 'auto';
+  const height = Math.max(32, Math.min(96, input.scrollHeight));
+  input.style.height = height + 'px';
+  document.documentElement.style.setProperty('--input-height', height + 'px');
+}
+input.addEventListener('input', resizeInput);
 
 function setBusy(value) {
   busy = value;
-  sendButton.disabled = !ready || busy;
-  stopRequestButton.hidden = !busy || !ready;
+  sendButton.disabled = !ready;
+  sendButton.dataset.busy = String(Boolean(busy));
+  sendButton.title = busy ? '停止请求' : '发送（Enter）';
+  sendButton.setAttribute('aria-label', busy ? '停止请求' : '发送消息');
   modeSelect.disabled = switching || !configReady;
   newButton.disabled = switching;
   if (!busy) chatStatus.textContent = idleStatus();
@@ -68,7 +76,7 @@ function showSession(view, { replay = false } = {}) {
     pendingBubble = stream.add({ text: '正在回复…', label: '智小理', pending: true });
   } else if (view.lastError) display(view.lastError, '智小理');
   modeSelect.value = mode;
-  input.placeholder = mode === 'study' ? '问学习问题，或查询我的课表…' : '和智小理说点什么…';
+  input.placeholder = mode === 'study' ? '问学习问题，查课表或作业…' : '和智小理说点什么…';
   newButton.title = mode === 'study' ? '清空当前通用学习会话上下文' : '新建校园对话，保留长期记忆，不撤销已有预约';
 }
 async function restoreSession({ replay = mode === 'study' } = {}) {
@@ -80,10 +88,12 @@ async function restoreSession({ replay = mode === 'study' } = {}) {
     if (generation !== version) return;
     if (!result.ok) throw new Error(result.error);
     showSession(result.session, { replay });
+    return true;
   } catch (error) {
     if (generation !== version) return;
     setBusy(false);
     display(error.message, '校园助手 · 会话加载失败');
+    return false;
   }
 }
 modeSelect.addEventListener('change', async () => {
@@ -105,6 +115,7 @@ modeSelect.addEventListener('change', async () => {
     if (!result.ok) throw new Error(result.error);
     switching = false;
     input.value = drafts[next];
+    resizeInput();
     showSession(result.session, { replay: true });
     input.focus();
   } catch (error) {
@@ -116,13 +127,13 @@ modeSelect.addEventListener('change', async () => {
     display(error.message, '智小理');
   } finally { switching = false; modeSelect.disabled = !configReady; }
 });
-stopRequestButton.addEventListener('click', async () => {
+async function stopRequest() {
   if (!busy || !ready) return;
   try {
     const result = await api.cancelChat(mode);
     if (!result.ok) throw new Error(result.error);
   } catch (error) { display(error.message, '智小理'); }
-});
+}
 function sendMessage() {
   const query = input.value.trim();
   if (!query || !ready || busy) return;
@@ -131,6 +142,7 @@ function sendMessage() {
   if (query.length > 8000) { display('问题请控制在 8000 字以内。', '校园助手'); return; }
   requestId = crypto.randomUUID();
   input.value = '';
+  resizeInput();
   drafts[mode] = '';
   setBusy(true);
   stream.add({ text: query, label: '我', kind: 'user' });
@@ -143,9 +155,9 @@ function sendMessage() {
     finishBubble(error.message, { kind: 'error' });
   }
 }
-sendButton.addEventListener('click', sendMessage);
+sendButton.addEventListener('click', () => { if (busy) void stopRequest(); else sendMessage(); });
 input.addEventListener('keydown', event => {
-  if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); sendMessage(); }
+  if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); sendMessage(); }
 });
 newButton.addEventListener('click', async () => {
   replySpeech.stop();
@@ -163,10 +175,17 @@ newButton.addEventListener('click', async () => {
     currentSession = result.session.id;
     ready = true;
     input.value = '';
+    resizeInput();
     if (result.session.lastError) display(result.session.lastError, '智小理');
     input.focus();
   } catch (error) {
-    if (generation === version) display(error.message, '校园助手 · 新会话失败');
+    if (generation === version) {
+      // The main process may already have replaced the in-memory session before
+      // a disk write failed. Reload its actual ID so sending remains recoverable.
+      const recovered = await restoreSession({ replay: true });
+      display('新会话未能完整保存：' + error.message + (recovered
+        ? '。已重新读取当前会话，可继续提问。' : '。请检查本机存储权限后重新打开应用。'), '智小理');
+    }
   } finally {
     if (generation === version) setBusy(false);
     newButton.disabled = false;
@@ -206,12 +225,12 @@ api.onCampusError(result => {
 
 function applyConfig(config) {
   replySpeech.configure(config.speech);
-  document.getElementById('stop-speech-btn').hidden = config.speech?.enabled === false;
   const ui = config.ui || {};
   document.documentElement.style.setProperty('--fs', (Number(ui.font_size) || 13) + 'px');
   if (/^#[0-9a-f]{6}$/i.test(ui.theme_color || '')) {
     document.documentElement.style.setProperty('--theme', ui.theme_color);
   }
+  resizeInput();
   window.syncWindowScale(config.window?.scale || 1);
   if (ui.custom_image) window.setCustomImage?.(ui.custom_image, { noResize: true });
   else window.clearCustomImage?.({ noResize: true });

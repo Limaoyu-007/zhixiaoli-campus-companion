@@ -1,17 +1,23 @@
+(() => {
 'use strict';
 const api = window.electronAPI;
 const U = window.TimetableUtils;
-const $ = id => document.getElementById(id);
+const root = document.getElementById('timetable-editor');
+const embedded = Boolean(root);
+const $ = id => document.getElementById((embedded ? 'tt-' : '') + id);
+const notify = () => { if (embedded) window.dispatchEvent(new Event('timetable-editor-state')); };
 let loaded = false, busy = false, recognizing = false, dirty = false, selectedSource = null, draftSourceId = null;
+let externalLocked = false;
 let savedSource = false, imagePages = [], pdfModule = null, generation = 0;
 const blank = () => ({ enabled: true, termName: '', week1Monday: null, totalWeeks: null, courses: [], periods: [], notes: '' });
 function status(message) { $('status').textContent = message; }
 function controls() {
-  for (const id of ['import', 'refresh', 'clear', 'save', 'add-course', 'add-period']) $(id).disabled = !loaded || busy;
-  $('parse').disabled = !loaded || busy || !selectedSource || !imagePages.length;
-  $('show-source').disabled = !loaded || busy || !savedSource || Boolean(draftSourceId);
+  for (const id of ['import', 'refresh', 'clear', 'add-course', 'add-period', ...(embedded ? [] : ['save'])]) $(id).disabled = !loaded || busy || externalLocked;
+  $('parse').disabled = !loaded || busy || externalLocked || !selectedSource || !imagePages.length;
+  $('show-source').disabled = !loaded || busy || externalLocked || !savedSource || Boolean(draftSourceId);
   $('cancel').hidden = !recognizing;
-  for (const item of document.querySelectorAll('main input, main select, main textarea, td button')) item.disabled = !loaded || busy;
+  for (const item of (root || document.querySelector('main')).querySelectorAll('input, select, textarea, td button')) item.disabled = !loaded || busy || externalLocked;
+  notify();
 }
 function input(name, value, type = 'text', placeholder = '') {
   const element = document.createElement('input');
@@ -64,10 +70,23 @@ function collect() {
     courses: rows('courses'), periods: rows('periods'), notes: $('notes').value });
 }
 function showWarnings(notes = []) {
-  try { $('warnings').textContent = [...new Set([...notes, ...U.warnings(collect())])].join('\n'); }
+  try {
+    const table = collect();
+    const warnings = [...new Set([...notes, ...U.warnings(table)])];
+    $('warnings').textContent = warnings.join('\n');
+    if (embedded) {
+      const overview = $('overview');
+      overview.textContent = table.courses.length
+        ? table.courses.length + ' 条课程安排 · ' + (warnings.length ? '有 ' + warnings.length + ' 项信息待核对，请查看下方提示。' : '日期、周次与节次信息已填写，可保存后用于查询。')
+        : '还没有课程安排。可以导入识别，也可以直接添加课程。';
+      overview.dataset.state = warnings.length ? 'incomplete' : 'ready';
+      $('week-monday').dataset.incomplete = String(!table.week1Monday);
+      $('total-weeks').dataset.incomplete = String(!table.totalWeeks);
+    }
+  }
   catch (error) { $('warnings').textContent = error.message; }
 }
-function changed() { dirty = true; showWarnings(); }
+function changed() { dirty = true; showWarnings(); notify(); }
 function render(table, warnings = []) {
   table ||= blank();
   $('enabled').checked = table.enabled !== false;
@@ -91,6 +110,7 @@ async function refresh() {
     render(result.table, result.warnings); dirty = false; draftSourceId = null;
     selectedSource = null; imagePages = []; savedSource = Boolean(result.table?.source);
     $('preview').replaceChildren();
+    if (embedded) root.querySelector('.timetable-source').open = false;
     $('source-name').textContent = result.table?.source?.name || '支持图片或 PDF；也可直接手动填写。';
     status(result.table ? '已读取本地课表。' : '还没有个人课表。导入识别或手动填写后保存。');
   } catch (error) { status(error.message); }
@@ -154,6 +174,7 @@ async function previewSource(source) {
     const image = document.createElement('img'); image.src = url; image.alt = '课表第' + (i + 1) + '页'; return image;
   });
   $('preview').replaceChildren(...images);
+  if (embedded) root.querySelector('.timetable-source').open = true;
   $('source-name').textContent = source.name + ' · ' + pages.length + '页';
   selectedSource = source; imagePages = pages;
 }
@@ -181,6 +202,7 @@ $('show-source').addEventListener('click', async () => {
 });
 $('parse').addEventListener('click', async () => {
   if (!canReplace()) return;
+  if (embedded && !await window.CampusSettings.saveConfiguration()) return;
   busy = true; recognizing = true; controls(); status('正在用百炼识别课表，完成后请核对草稿…');
   const epoch = ++generation;
   try {
@@ -196,16 +218,28 @@ $('cancel').addEventListener('click', async () => {
   try { checkResult(await api.campusCancelTimetable()); status('识别已停止，已保存的课表未改动。'); }
   catch (error) { status(error.message); }
 });
-$('save').addEventListener('click', async () => {
+async function saveDraft() {
+  if (!dirty) return;
+  if (!loaded || busy) throw new Error('课表正在处理中，请稍后保存。');
   busy = true; controls();
   try {
     const table = collect();
     const result = checkResult(await api.campusSaveTimetable({ table, sourceId: draftSourceId }));
     render(result.table, result.warnings); savedSource = Boolean(result.table.source); dirty = false; draftSourceId = null;
     status(table.enabled ? '课表已保存在本机，从下一条聊天开始使用。' : '课表已保存，聊天中使用课表已关闭。');
-  } catch (error) { status(error.message); }
+  } catch (error) { status(error.message); throw error; }
   finally { busy = false; controls(); }
-});
+}
+if (!embedded) $('save').addEventListener('click', () => { void saveDraft().catch(() => {}); });
+if (embedded) window.CampusTimetableEditor = {
+  get dirty() { return dirty; }, get busy() { return busy; },
+  validate() { if (dirty) collect(); }, save: saveDraft,
+  setLocked(value) {
+    if (externalLocked === value) return;
+    externalLocked = value;
+    controls();
+  },
+};
 $('clear').addEventListener('click', async () => {
   if (!window.confirm('清空本机课表及保存的原文件？长期记忆和已有预约不受影响。')) return;
   busy = true; controls();
@@ -217,8 +251,9 @@ $('clear').addEventListener('click', async () => {
   } catch (error) { status(error.message); }
   finally { busy = false; controls(); }
 });
-$('open-model-settings').addEventListener('click', () => api.openSettingsWindow('timetable'));
+if (!embedded) $('open-model-settings').addEventListener('click', () => api.openSettingsWindow('timetable'));
 function modelInfo(config) {
+  if (embedded) return;
   $('model-info').textContent = '视觉模型：' + config.timetable.model + ' · '
     + (config.timetable.has_api_key ? '已有百炼凭据配置。' : '尚未配置百炼凭据，请前往设置填写并保存。');
 }
@@ -232,7 +267,7 @@ $('add-period').addEventListener('click', () => {
 });
 for (const id of ['enabled', 'term-name', 'week-monday', 'total-weeks', 'notes']) $(id).addEventListener('input', changed);
 $('refresh').addEventListener('click', refresh);
-window.addEventListener('beforeunload', () => { generation++; void api.campusCancelTimetable(); });
+window.addEventListener('pagehide', () => { generation++; void api.campusCancelTimetable(); });
 controls();
 void (async () => {
   try {
@@ -240,4 +275,6 @@ void (async () => {
     modelInfo(config);
     loaded = true; await refresh();
   } catch (error) { status(error.message); controls(); }
+})();
+
 })();

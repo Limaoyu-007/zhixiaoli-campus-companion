@@ -4,7 +4,8 @@ const api = window.electronAPI;
 const field = id => document.getElementById(id);
 let image = '', loaded = false, configDirty = false, memoryDirty = false;
 let saving = false, memoryBusy = false, currentMemory = null;
-const dirty = () => configDirty || memoryDirty;
+const timetable = () => window.CampusTimetableEditor;
+const dirty = () => configDirty || memoryDirty || Boolean(timetable()?.dirty);
 function message(detail = '', error = false) {
   field('save-state').textContent = saving ? '正在保存…' : dirty() ? '有未保存的更改' : loaded ? '当前更改已保存' : '正在读取设置…';
   field('save-detail').textContent = detail;
@@ -12,9 +13,12 @@ function message(detail = '', error = false) {
 }
 function markConfigDirty() { configDirty = true; message('点击右侧“保存更改”后生效。'); }
 function controls() {
-  field('save').disabled = !loaded || saving || memoryBusy;
+  field('save').disabled = !loaded || saving || memoryBusy || Boolean(timetable()?.busy);
   field('save').textContent = saving ? '正在保存…' : '保存更改';
-  for (const element of document.querySelectorAll('main input, main select, main textarea')) element.disabled = !loaded || saving;
+  for (const element of document.querySelectorAll('main input, main select, main textarea')) {
+    if (!element.closest('#timetable-editor')) element.disabled = !loaded || saving;
+  }
+  timetable()?.setLocked(!loaded || saving || memoryBusy);
   for (const id of ['memory-facts', 'memory-summary']) field(id).disabled = !loaded || !currentMemory || saving || memoryBusy;
   for (const id of ['memory-clear', 'memory-refresh']) field(id).disabled = saving || memoryBusy || !currentMemory;
   field('memory-summarize').disabled = saving || memoryBusy || !currentMemory || currentMemory.summarizing;
@@ -38,15 +42,15 @@ function preview() {
   if (image) field('image-preview').src = image; else field('image-preview').removeAttribute('src');
 }
 function credentialStatus(config) {
-  field('key-status').textContent = config.campus.has_api_key ? '已有校园接口凭据，留空沿用。' : '尚未配置校园接口凭据。';
-  field('memory-key-status').textContent = config.memory.has_api_key ? '已有百炼凭据，留空沿用。' : '尚未配置百炼凭据，填写后点击“保存更改”。';
-  field('timetable-key-status').textContent = config.timetable.has_api_key ? '已有可沿用的百炼凭据，留空即可。' : '尚未配置，请在此处或长期记忆中填写，并保存更改。';
-  field('study-key-status').textContent = config.study.has_api_key ? '已有通用学习凭据，留空沿用。独立于校园和记忆模型配置。' : '尚未配置通用学习凭据，请填写并保存。';
+  for (const [section, id] of [['campus', 'key-status'], ['memory', 'memory-key-status'], ['timetable', 'timetable-key-status'], ['study', 'study-key-status']]) {
+    field(id).textContent = config[section].has_api_key ? '此功能已独立配置。清空输入框并保存可删除。' : '此功能尚未配置 API Key，请填写并保存。';
+  }
   field('chaoxing-status').textContent = config.chaoxing.uses_environment
     ? config.chaoxing.environment_complete ? '查询将使用环境变量中的账号密码。' : '环境变量不完整：请同时设置 CHAOXING_PHONE 和 CHAOXING_PASSWORD。'
     : config.chaoxing.has_password ? '已保存加密密码，留空沿用；账号密码仅在查询时读取。' : '尚未保存学习通密码，请填写后点击“保存更改”。';
 }
-api.getConfig().then(config => {
+api.getSettingsConfig().then(config => {
+  for (const [section, id] of [['campus', 'api-key'], ['memory', 'memory-key'], ['timetable', 'timetable-key'], ['study', 'study-key']]) field(id).value = config[section].api_key || '';
   field('platform-user').value = config.campus.user || '';
   field('timeout').value = config.campus.timeout_seconds || 120;
   field('font-size').value = config.ui.font_size || 13;
@@ -62,6 +66,7 @@ api.getConfig().then(config => {
   field('memory-rounds').value = memory.context_rounds || 3;
   field('timetable-base').value = config.timetable.api_base || '';
   field('timetable-model').value = config.timetable.model || 'qwen3-vl-plus';
+  if (!config.timetable.has_api_key) field('timetable-model-settings').open = true;
   field('debug-enabled').checked = config.debug?.enabled === true;
   const study = config.study;
   field('study-provider').value = study.provider;
@@ -75,13 +80,11 @@ api.getConfig().then(config => {
   credentialStatus(config);
   image = config.ui.custom_image || ''; preview(); loaded = true; message(); controls();
 }).catch(error => message(error.message, true));
-field('open-timetable').addEventListener('click', () => api.openTimetableWindow());
 field('study-provider').addEventListener('change', () => {
   const preset = { qwen: ['https://dashscope.aliyuncs.com/compatible-mode/v1', 'qwen-plus'],
     deepseek: ['https://api.deepseek.com', 'deepseek-flash'] }[field('study-provider').value];
   if (preset) { field('study-base').value = preset[0]; field('study-model').value = preset[1]; }
   field('study-key').value = '';
-  field('study-clear-key').checked = true;
   markConfigDirty();
 });
 field('choose-image').addEventListener('click', async () => {
@@ -93,6 +96,7 @@ field('choose-image').addEventListener('click', async () => {
 });
 field('reset-image').addEventListener('click', () => { image = ''; preview(); markConfigDirty(); });
 for (const element of document.querySelectorAll('main input, main select, main textarea')) {
+  if (element.closest('#timetable-editor')) continue;
   if (['memory-facts', 'memory-summary'].includes(element.id)) element.addEventListener('input', () => { memoryDirty = true; message('学生资料和配置将一起保存。'); });
   else element.addEventListener('input', markConfigDirty);
 }
@@ -109,12 +113,13 @@ function editedMemory() {
   if (facts.length > 15 || summary.length > 300) throw new Error('学生资料最多15条，近期摘要最多300字。');
   return { facts, summary };
 }
-async function saveAll() {
-  if (!loaded || saving || memoryBusy) return false;
+async function saveAll({ configurationOnly = false } = {}) {
+  if (!loaded || saving || memoryBusy || timetable()?.busy) return false;
   saving = true; controls(); message();
-  let configSaved = false;
+  let configSaved = false, stage = '配置';
   try {
-    const profile = memoryDirty ? editedMemory() : null;
+    const profile = !configurationOnly && memoryDirty ? editedMemory() : null;
+    if (!configurationOnly) timetable()?.validate();
     const result = await api.saveConfig({
       campus: { api_key: field('api-key').value.trim(), user: field('platform-user').value.trim(), timeout_seconds: field('timeout').value },
       ui: { custom_image: image, font_size: field('font-size').value, theme_color: field('theme').value,
@@ -125,7 +130,7 @@ async function saveAll() {
       timetable: { api_key: field('timetable-key').value.trim(), api_base: field('timetable-base').value.trim(), model: field('timetable-model').value.trim() },
       debug: { enabled: field('debug-enabled').checked },
       study: { provider: field('study-provider').value, api_base: field('study-base').value.trim(),
-        api_key: field('study-key').value.trim(), clear_api_key: field('study-clear-key').checked,
+        api_key: field('study-key').value.trim(),
         model: field('study-model').value.trim(), timeout_seconds: field('study-timeout').value,
         context_rounds: field('study-context-rounds').value, max_rounds: field('study-max-rounds').value },
       chaoxing: { enabled: field('chaoxing-enabled').checked, phone: field('chaoxing-phone').value.trim(),
@@ -133,25 +138,58 @@ async function saveAll() {
     });
     if (!result.ok) throw new Error(result.error);
     configSaved = true; configDirty = false;
-    for (const id of ['api-key', 'memory-key', 'timetable-key', 'study-key', 'chaoxing-password']) field(id).value = '';
-    field('study-clear-key').checked = false;
+    field('chaoxing-password').value = '';
     field('chaoxing-clear-password').checked = false;
     credentialStatus(result.config);
     if (profile) {
+      stage = '学生资料';
       const updated = await api.campusUpdateMemory(profile);
       if (!updated.ok) throw new Error(updated.error);
       renderMemory(updated.memory, true);
     }
-    saving = false; message(profile ? '配置及学生资料已保存。修改后的记忆在新会话使用。' : '所有设置已保存。');
+    if (!configurationOnly) {
+      stage = '课表';
+      await timetable()?.save();
+    }
+    saving = false; message(configurationOnly ? '识别配置已保存，课表草稿尚未保存。' : '配置、资料及课表修改已保存。');
     void refreshDebug();
     return true;
   } catch (error) {
     saving = false;
-    message((configSaved && memoryDirty ? '配置已保存，学生资料未保存：' : '保存失败：') + error.message, true);
+    message((configSaved ? '配置已保存，' + stage + '保存失败：' : '保存失败：') + error.message, true);
     return false;
   } finally { saving = false; controls(); }
 }
 field('save').addEventListener('click', () => { void saveAll(); });
+// Recognition saves only its own configuration. Unfinished edits on other tabs
+// must neither block recognition nor be committed as a side effect.
+async function saveRecognitionConfig() {
+  if (!loaded || saving || memoryBusy || timetable()?.busy) return false;
+  saving = true; controls(); message();
+  try {
+    const patch = { api_key: field('timetable-key').value.trim(),
+      api_base: field('timetable-base').value.trim(), model: field('timetable-model').value.trim() };
+    if (!patch.api_key || !patch.api_base || !patch.model) {
+      field('timetable-model-settings').open = true;
+      throw new Error('请先在“课表识别配置”填写 API Key、接口地址和视觉模型。');
+    }
+    const result = await api.saveConfig({ timetable: patch });
+    if (!result.ok) throw new Error(result.error);
+    credentialStatus(result.config);
+    saving = false;
+    message('课表识别配置已保存；识别结果仍需核对后点击“保存更改”。');
+    field('timetable-model-settings').open = false;
+    return true;
+  } catch (error) {
+    saving = false; message(error.message, true);
+    return false;
+  } finally { saving = false; controls(); }
+}
+window.CampusSettings = { saveConfiguration: saveRecognitionConfig };
+window.addEventListener('timetable-editor-state', () => {
+  controls();
+  message(field('save-detail').textContent, field('status').classList.contains('error'));
+});
 function renderMemory(info, force = false) {
   currentMemory = info;
   if (!memoryDirty || force) {
@@ -218,7 +256,7 @@ field('debug-export').addEventListener('click', async () => {
   } catch (error) { message(error.message, true); }
 });
 window.addEventListener('beforeunload', event => {
-  if (saving || memoryBusy || (dirty() && !window.confirm('还有未保存的修改，确认关闭设置？'))) {
+  if (saving || memoryBusy || timetable()?.busy || (dirty() && !window.confirm('还有未保存的修改，确认关闭设置？'))) {
     event.preventDefault(); event.returnValue = false;
   }
 });

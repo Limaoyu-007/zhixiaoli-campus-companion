@@ -1,6 +1,6 @@
 # 当前源码地图
 
-2026-10-24整理。本文描述当前运行代码。项目已按用户决定结束本阶段功能开发，接手先读CONTEXT.md和阶段总结。
+2026-10-27更新。本文描述当前运行代码。最新输入区、独立凭据与内嵌课表编辑约定先读CONTEXT.md；10月24日阶段总结保留为历史背景。
 
 ## 阅读顺序
 
@@ -32,8 +32,8 @@
 | renderer/campus-chat.js | 两种模式共用聊天控制 |
 | renderer/campus-bubbles.js / campus-markdown.js | 气泡和Markdown |
 | renderer/campus-feedback.js / services/campus-answer.js | 可信业务反馈、正文过滤 |
-| renderer/campus-settings.* | 统一设置、资料编辑、日志入口 |
-| renderer/campus-timetable.* | PDF/图片导入、核对编辑 |
+| renderer/campus-settings.* | 统一设置、明文独立API Key、资料及课表统一保存、日志入口 |
+| renderer/campus-timetable.js | 设置页内的PDF/图片导入、识别草稿与核对编辑；CampusTimetableEditor协调草稿、忙碌状态与保存 |
 | renderer/campus-speech.js | 音频播放/停止、音量与口型状态 |
 | renderer/portrait-pet.js / .css | 人物交互、命中/穿透、展示优先级 |
 | renderer/portrait-layered.js / portrait-mesh.js | 分层、网格、统一动作时钟 |
@@ -54,7 +54,6 @@
 | assets/zhixiaoli/ | 当前立绘、五官、挥手和分层素材 |
 | assets/brand/ / scripts/make-icons.js | 品牌SVG及PNG/ICO生成 |
 | libs/ | Marked、DOMPurify浏览器文件和许可证 |
-| docs/history/ | 旧入口/能力历史，非当前实施依据 |
 
 ## 数据与兼容
 
@@ -62,6 +61,6 @@
 
 main-campus.js/preload-campus.js已统一为main.js/preload.js；原版旧同名入口先备份后删除。原聊天/设置/调试页、Live2D控制器/库和上游角色已移除，没有Vue、摄像头、截屏或旧多供应商语音链路。
 
-本轮未运行测试、构建、应用验收或真实模型请求。Runtime仍在主进程执行，未拆独立服务或工具子进程。
+2026-10-27收尾验证覆盖独立Electron交互、后端回归和脚本语法；真实外部模型/平台与安装包尚未验收。后端测试入口为tests/review-backend.test.cjs，可通过npm test运行。Runtime仍在主进程执行，未拆独立服务或工具子进程。
 
-当前list_homework工具由main.js注入学习通客户端；设置页保存账号及safeStorage加密密码，不向模型/页面回填凭据。工具参数只有课程关键词和可选候选编号，不接受账号、密码、URL或Cookie。HTML使用Cheerio解析，不加载页面脚本或额外资源。用户于2026-10-24反馈查询可用，代理未独立进行真实登录验收，详见docs/CHAOXING_TOOL.md。
+当前list_homework工具由main.js注入学习通客户端；设置页保存账号及safeStorage加密密码，不向模型传递凭据，也不向页面回填密码。工具参数只有课程关键词和可选候选编号，不接受账号、密码、URL或Cookie。HTML使用Cheerio解析，不加载页面脚本或额外资源。用户于2026-10-24反馈查询可用，代理未独立进行真实登录验收，详见docs/CHAOXING_TOOL.md。

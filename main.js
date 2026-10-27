@@ -34,7 +34,6 @@ let tray = null;
 let campusStore = null;
 let activeRequest = null;
 let memoryReady = false;
-let timetableWindow = null;
 let campusTimetable = null;
 let campusDebugLog = null;
 let studyStore = null;
@@ -56,7 +55,7 @@ function loadConfig() {
     speech: { enabled: true, voice: 'zh-CN-XiaoxiaoNeural', rate: 0, ...saved.speech },
     memory: { enabled: true, api_base: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
       api_key: '', model: 'qwen-flash', context_rounds: 3, ...saved.memory },
-    timetable: { api_base: '', api_key: '', model: 'qwen3-vl-plus', ...saved.timetable },
+    timetable: { api_base: 'https://dashscope.aliyuncs.com/compatible-mode/v1', api_key: '', model: 'qwen3-vl-plus', ...saved.timetable },
     debug: { enabled: !app.isPackaged, ...saved.debug },
     agent: { mode: saved.agent?.mode === 'study' ? 'study' : 'campus' },
     study: { provider: 'qwen', api_base: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
@@ -99,7 +98,7 @@ function localStore() {
 }
 function studyConfig() {
   const config = loadConfig().study;
-  return { ...config, api_key: process.env.ZXL_STUDY_API_KEY?.trim() || config.api_key?.trim() || '' };
+  return { ...config, api_key: config.api_key?.trim() || '' };
 }
 function localRuntime() {
   if (!studyRuntime) studyRuntime = new LocalAgentRuntime({ tools: createStudyTools({ getTimetable: timetableStore, getChaoxing: chaoxingStore }) });
@@ -136,9 +135,8 @@ function sessionView(mode) {
 }
 function memoryConfig() {
   const config = loadConfig().memory;
-  const envKey = process.env.DASHSCOPE_API_KEY?.trim();
-  return { ...config, api_key: envKey || config.api_key?.trim() || '',
-    key_source: envKey ? 'DASHSCOPE_API_KEY environment' : 'memory settings', config_file: configPath() };
+  return { ...config, api_key: config.api_key?.trim() || '',
+    key_source: 'memory settings', config_file: configPath() };
 }
 function memoryStore() {
   if (!memoryReady) {
@@ -154,10 +152,8 @@ function memoryStore() {
   return memoryService;
 }
 function timetableConfig() {
-  const config = loadConfig();
-  return { ...config.timetable,
-    api_base: config.timetable.api_base?.trim() || config.memory.api_base,
-    api_key: process.env.DASHSCOPE_API_KEY?.trim() || config.timetable.api_key?.trim() || config.memory.api_key?.trim() || '' };
+  const config = loadConfig().timetable;
+  return { ...config, api_key: config.api_key?.trim() || '' };
 }
 function timetableStore() {
   if (!campusTimetable) campusTimetable = new CampusTimetableService(app.getPath('userData'), timetableConfig);
@@ -412,6 +408,14 @@ ipcMain.on('campus-chat-send', async (event, payload) => {
 });
 
 ipcMain.handle('get-config', () => publicConfig());
+// Plaintext keys belong only to the local settings editor, never chat/broadcast payloads.
+ipcMain.handle('settings-get-config', event => {
+  if (event.sender !== settingsWindow?.webContents) throw new Error('请从设置窗口读取配置。');
+  const config = loadConfig();
+  const result = publicConfig();
+  for (const section of ['campus', 'study', 'memory', 'timetable']) result[section].api_key = config[section].api_key || '';
+  return result;
+});
 ipcMain.handle('campus-debug-info', () => {
   try { return { ok: true, ...debugStore().info() }; }
   catch (_) { return { ok: false, error: '无法读取调试日志状态。' }; }
@@ -440,13 +444,13 @@ ipcMain.handle('campus-debug-export', async () => {
     return { ok: true };
   } catch (error) { return { ok: false, error: error.message || '日志导出失败。' }; }
 });
-// Only the dedicated local editor may access source bytes or submit recognition requests.
+// Only the local settings editor may access source bytes or submit recognition requests.
 function timetableIPC(channel, callback) {
   ipcMain.handle(channel, async (event, payload) => {
     const startedAt = Date.now();
     const traceParse = channel === 'campus-timetable-parse';
     try {
-      if (!timetableWindow || event.sender !== timetableWindow.webContents) throw new Error('请从“我的课表”窗口操作。');
+      if (event.sender !== settingsWindow?.webContents) throw new Error('请从设置中的“我的课表”操作。');
       if (traceParse) debugLog('timetable.parse.started', { sourceId: payload?.sourceId,
         model: timetableConfig().model, pages: payload?.images?.length });
       const result = await callback(payload);
@@ -461,7 +465,7 @@ function timetableIPC(channel, callback) {
 }
 timetableIPC('campus-timetable-get', () => timetableStore().view());
 timetableIPC('campus-timetable-select', async () => {
-  const result = await dialog.showOpenDialog(timetableWindow, { title: '导入个人课表', properties: ['openFile'],
+  const result = await dialog.showOpenDialog(settingsWindow, { title: '导入个人课表', properties: ['openFile'],
     filters: [{ name: '课表图片或 PDF', extensions: ['png', 'jpg', 'jpeg', 'webp', 'pdf'] }] });
   if (result.canceled || !result.filePaths.length) return { cancelled: true };
   return { source: timetableStore().select(result.filePaths[0]) };
@@ -501,13 +505,14 @@ ipcMain.handle('speech-synthesize', async (_event, text) => {
 });
 ipcMain.handle('save-config', (_event, patch = {}) => {
   try {
+    if (_event.sender !== settingsWindow?.webContents) throw new Error('请从设置窗口保存配置。');
     const config = loadConfig();
     const oldUser = config.campus.user;
     const oldChaoxing = JSON.stringify(config.chaoxing);
     if (patch.campus) {
       config.campus.user = String(patch.campus.user || '').trim();
       config.campus.timeout_seconds = Math.max(10, Math.min(300, Number(patch.campus.timeout_seconds) || 120));
-      if (patch.campus.api_key?.trim()) config.campus.api_key = patch.campus.api_key.trim();
+      if (typeof patch.campus.api_key === 'string') config.campus.api_key = patch.campus.api_key.trim();
     }
     if (patch.ui) {
       config.ui.font_size = Math.max(11, Math.min(20, Number(patch.ui.font_size) || 13));
@@ -534,7 +539,7 @@ ipcMain.handle('save-config', (_event, patch = {}) => {
       if (!model || model.length > 120) throw new Error('请填写有效的记忆整理模型名称。');
       config.memory = { ...config.memory, enabled: input.enabled !== false,
         api_base: base, model, context_rounds: Math.max(1, Math.min(20, Math.round(Number(input.context_rounds) || 3))) };
-      if (typeof input.api_key === 'string' && input.api_key.trim()) config.memory.api_key = input.api_key.trim();
+      if (typeof input.api_key === 'string') config.memory.api_key = input.api_key.trim();
     }
     if (patch.timetable) {
       const input = patch.timetable;
@@ -546,7 +551,7 @@ ipcMain.handle('save-config', (_event, patch = {}) => {
       const model = String(input.model || '').trim();
       if (!model || model.length > 120) throw new Error('请填写有效的课表视觉模型名称。');
       config.timetable = { ...config.timetable, api_base: base, model };
-      if (typeof input.api_key === 'string' && input.api_key.trim()) config.timetable.api_key = input.api_key.trim();
+      if (typeof input.api_key === 'string') config.timetable.api_key = input.api_key.trim();
     }
     if (patch.debug) config.debug = { enabled: patch.debug.enabled === true };
     if (patch.study) {
@@ -557,10 +562,7 @@ ipcMain.handle('save-config', (_event, patch = {}) => {
         context_rounds: Math.max(1, Math.min(30, Math.round(Number(input.context_rounds) || 12))),
         max_rounds: Math.max(1, Math.min(8, Math.round(Number(input.max_rounds) || 6))) };
       validateStudyConfig(next);
-      // An old credential is never silently forwarded to a newly configured host.
-      if (new URL(next.api_base).origin !== new URL(config.study.api_base).origin) next.api_key = '';
-      if (input.clear_api_key === true) next.api_key = '';
-      if (typeof input.api_key === 'string' && input.api_key.trim()) next.api_key = input.api_key.trim();
+      if (typeof input.api_key === 'string') next.api_key = input.api_key.trim();
       config.study = next;
     }
     if (patch.chaoxing) {
@@ -590,7 +592,6 @@ ipcMain.handle('save-config', (_event, patch = {}) => {
     if (oldChaoxing !== JSON.stringify(config.chaoxing)) { cancelStudyRequest(); chaoxingClient?.reset(); }
     const updated = publicConfig();
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('config-updated', updated);
-    if (timetableWindow && !timetableWindow.isDestroyed()) timetableWindow.webContents.send('config-updated', updated);
     return { ok: true, config: updated };
   } catch (error) {
     debugLog('settings.failed', { error: error.message });
@@ -640,22 +641,17 @@ function openSettings(section = 'campus') {
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.focus(); settingsWindow.webContents.send('settings-section', section); return;
   }
-  settingsWindow = new BrowserWindow({ width: 820, height: 740, minWidth: 620, minHeight: 520, icon: APP_ICON,
+  settingsWindow = new BrowserWindow({ width: 1100, height: 800, minWidth: 760, minHeight: 580, icon: APP_ICON,
     title: '智小理设置', autoHideMenuBar: true, alwaysOnTop: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false } });
+  settingsWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  settingsWindow.webContents.on('will-navigate', event => event.preventDefault());
   settingsWindow.loadFile(path.join(__dirname, 'renderer', 'campus-settings.html'), { query: { section } });
-  settingsWindow.on('closed', () => { settingsWindow = null; });
+  settingsWindow.on('closed', () => { campusTimetable?.release(); settingsWindow = null; });
 }
 ipcMain.on('open-settings-window', (_event, section) => openSettings(section));
 function openTimetable() {
-  if (timetableWindow && !timetableWindow.isDestroyed()) { timetableWindow.focus(); return; }
-  timetableWindow = new BrowserWindow({ width: 1160, height: 800, minWidth: 820, minHeight: 580, icon: APP_ICON,
-    title: '智小理 · 我的课表', autoHideMenuBar: true,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false } });
-  timetableWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  timetableWindow.webContents.on('will-navigate', event => event.preventDefault());
-  timetableWindow.loadFile(path.join(__dirname, 'renderer', 'campus-timetable.html'));
-  timetableWindow.on('closed', () => { campusTimetable?.release(); timetableWindow = null; });
+  openSettings('timetable');
 }
 ipcMain.on('open-timetable-window', openTimetable);
 ipcMain.handle('open-external', async (_event, value) => {

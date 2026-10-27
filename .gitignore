@@ -33,3 +33,7 @@ LOCAL_HANDOFF.md
 *.key
 *.p12
 *.pfx
+
+# Local review runs and generated application profiles
+verification/
+tests/unit-table-*/

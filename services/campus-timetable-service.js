@@ -76,7 +76,8 @@ class CampusTimetableService {
     }
     if (size > 28 * 1024 * 1024) throw new Error('课表图像过大，请拆分或压缩后导入。');
     const config = this.getConfig();
-    if (!config.api_key) throw new Error('请先配置百炼 API Key，可沿用长期记忆的凭据。');
+    if (!config.api_key) throw new Error('请在设置 → 我的课表 → 课表识别配置中填写并保存 API Key。');
+    if (!config.api_base) throw new Error('请在课表识别配置中填写并保存接口地址。');
     const base = config.api_base.replace(/\/+$/, '');
     const url = new URL(base.endsWith('/chat/completions') ? base : base + '/chat/completions');
     if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) throw new Error('百炼接口地址无效。');

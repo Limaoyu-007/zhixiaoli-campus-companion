@@ -36,6 +36,11 @@ window.CampusSpeech = class {
     this.animation = null;
     window.setPetSpeaking?.(false);
     window.setLipSync?.(0);
+    this.playbackState(false);
+  }
+  playbackState(active) {
+    const button = document.getElementById('stop-speech-btn');
+    if (button) button.hidden = !active;
   }
   destroy() {
     this.stop();
@@ -61,10 +66,12 @@ window.CampusSpeech = class {
       if (!this.context || !this.analyser) throw new Error('当前环境无法初始化语音播放，文字回复已保留。');
       const text = this.plainText(markdown);
       if (!text) return;
+      this.playbackState(true);
       const result = await window.electronAPI.synthesizeSpeech(text);
       if (generation !== this.generation) return;
       if (!result.ok) {
         if (!result.cancelled) throw new Error(result.error);
+        this.playbackState(false);
         return;
       }
       const bytes = new Uint8Array(result.audio);
@@ -80,6 +87,7 @@ window.CampusSpeech = class {
         source.disconnect();
         if (generation !== this.generation) return;
         this.source = null;
+        this.playbackState(false);
         if (this.animation !== null) cancelAnimationFrame(this.animation);
         this.animation = null;
         window.setPetSpeaking?.(false);

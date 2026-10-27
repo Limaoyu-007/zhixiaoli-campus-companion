@@ -5,6 +5,7 @@ const listen = (channel, callback) => ipcRenderer.on(channel, (_event, data) => 
 
 contextBridge.exposeInMainWorld('electronAPI', {
   getConfig: () => ipcRenderer.invoke('get-config'),
+  getSettingsConfig: () => ipcRenderer.invoke('settings-get-config'),
   saveConfig: config => ipcRenderer.invoke('save-config', config),
   onConfigUpdated: callback => listen('config-updated', callback),
   onSettingsSection: callback => listen('settings-section', callback),

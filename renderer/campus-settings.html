@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<!-- Campus-only settings, 2026-10-22. -->
+<!-- Unified settings and timetable editor. -->
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: file:; font-src 'self' blob: data:; worker-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'">
   <title>智小理设置</title>
   <style>
     * { box-sizing: border-box; }
@@ -44,6 +45,41 @@
     #memory-clear { color: #a55050; }
     #debug-info { white-space: pre-wrap; overflow-wrap: anywhere; }
     .notice { padding: 10px 12px; background: #f0f5ff; border-radius: 8px; color: #58729d; }
+    .model-settings { border: 1px solid #e1e8f5; border-radius: 10px; padding: 12px 16px; margin: 16px 0; }
+    .model-settings summary, .timetable-source summary { cursor: pointer; color: #335cad; font-weight: 600; }
+    #timetable-editor .timetable-toolbar { margin: 16px 0; }
+    #timetable-editor .actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+    #timetable-editor .timetable-layout, #timetable-editor .stack { display: grid; gap: 16px; min-width: 0; }
+    #timetable-editor .timetable-card, #timetable-editor .timetable-source { padding: 16px; border: 1px solid #e4eaf4; border-radius: 10px; }
+    #timetable-editor h2 { font-size: 15px; margin: 0 0 10px; }
+    #timetable-editor .meta { display: grid; grid-template-columns: 1.2fr 1.2fr .8fr; gap: 12px; }
+    #timetable-editor .scroll { overflow-x: auto; }
+    #timetable-editor table { width: 100%; border-collapse: collapse; text-align: left; }
+    #timetable-editor th { font-weight: normal; font-size: 12px; color: #718099; }
+    #timetable-editor td, #timetable-editor th { padding: 5px 3px; vertical-align: top; }
+    #timetable-editor td input, #timetable-editor td select { margin-top: 0; padding: 6px; font-size: 12px; }
+    #timetable-editor td button { padding: 5px 8px; }
+    #tt-courses { min-width: 720px; table-layout: fixed; }
+    #tt-courses th:nth-child(1) { width: 21%; }
+    #tt-courses th:nth-child(2) { width: 10%; }
+    #tt-courses th:nth-child(3), #tt-courses th:nth-child(4) { width: 8%; }
+    #tt-courses th:nth-child(5) { width: 18%; }
+    #tt-courses th:nth-child(6) { width: 17%; }
+    #tt-courses th:nth-child(7) { width: 12%; }
+    #tt-courses th:nth-child(8) { width: 6%; }
+    #tt-periods { max-width: 480px; }
+    #tt-preview img { display: block; max-width: 100%; margin-top: 12px; }
+    #tt-source-name { overflow-wrap: anywhere; }
+    #tt-warnings, #tt-status { white-space: pre-wrap; }
+    #tt-warnings { color: #99703c; max-height: 140px; overflow: auto; font-size: 12px; }
+    #tt-status { color: #4265a5; }
+    #tt-overview { padding: 10px 12px; border-radius: 8px; background: #f0f5ff; color: #4265a5; }
+    #tt-overview[data-state=incomplete] { background: #fff8ec; color: #936522; }
+    #timetable-editor input[data-incomplete=true] { border-color: #d8b77d; }
+    #timetable-editor .primary { background: #4779e9; color: white; }
+    #timetable-editor .danger { color: #aa515b; }
+    #tt-cancel[hidden] { display: none; }
+    @media (max-width: 850px) { #timetable-editor .meta { grid-template-columns: 1fr; gap: 0; } }
   </style>
 </head>
 <body>
@@ -77,9 +113,8 @@
     <p class="notice">由本机管理对话上下文和工具调用，使用你配置的模型服务。聊天窗口可随时切换模式，两种模式分别保存会话。</p>
     <label>模型厂家<select id="study-provider"><option value="qwen">阿里云百炼 / 千问</option><option value="deepseek">DeepSeek</option><option value="custom">其他兼容接口</option></select></label>
     <p>当前支持 Chat Completions 兼容接口及其工具调用格式。其他协议的厂家尚未接入。</p>
-    <label>模型 API Key<input id="study-key" type="password" autocomplete="new-password" placeholder="留空沿用已有凭据"></label>
+    <label>模型 API Key<input id="study-key" type="text" autocomplete="off" spellcheck="false" placeholder="填写此功能自己的 API Key"></label>
     <p id="study-key-status"></p>
-    <label><input id="study-clear-key" type="checkbox">删除已保存的通用学习密钥</label>
     <label>模型接口地址<input id="study-base" type="url" spellcheck="false" placeholder="https://…/v1"></label>
     <p>切换厂家会填入公共示例地址与模型名，请按账户实际信息调整。百炼也可填写业务空间专属地址。本机接口可用 HTTP。</p>
     <label>对话模型<input id="study-model" spellcheck="false" placeholder="填写支持工具调用的模型名称"></label>
@@ -95,19 +130,73 @@
   </section>
   <section data-panel="timetable" hidden>
     <h3>我的课表</h3>
-    <p>导入课表图片或 PDF，识别、修改后保存在本机。校园模式每次聊天附上课表文字；通用学习模式由模型按需调用工具读取。</p>
-    <button id="open-timetable">管理我的课表</button>
-    <h4>百炼课表识别</h4>
-    <p>使用视觉模型。Key和接口地址留空时沿用长期记忆配置，模型单独设置。</p>
-    <label>百炼 API Key<input id="timetable-key" type="password" autocomplete="new-password" placeholder="留空沿用已有凭据"></label>
+    <p>在这里导入、识别和核对课表。识别结果为草稿，点击底部“保存更改”后用于聊天。</p>
+    <p id="tt-overview">正在读取课表…</p>
+    <details id="timetable-model-settings" class="model-settings">
+      <summary>课表识别配置</summary>
+      <p>单独填写课表识别的 API Key、接口地址和视觉模型，再保存更改。</p>
+    <label>百炼 API Key<input id="timetable-key" type="text" autocomplete="off" spellcheck="false" placeholder="填写此功能自己的 API Key"></label>
     <p id="timetable-key-status"></p>
-    <label>百炼接口地址<input id="timetable-base" type="url" spellcheck="false" placeholder="留空沿用长期记忆接口地址"></label>
+    <label>百炼接口地址<input id="timetable-base" type="url" spellcheck="false" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"></label>
     <label>视觉模型<input id="timetable-model" value="qwen3-vl-plus" spellcheck="false"></label>
-    <p>模型须支持图片输入、非思考模式和JSON输出。此处修改后点击右下角“保存更改”。</p>
+    <p>模型须支持图片输入、非思考模式和JSON输出。配置独立保存，不借用长期记忆的凭据。</p>
+    </details>
+    <div id="timetable-editor">
+  <div class="timetable-toolbar">
+
+    <p>导入后先核对，再保存。智小理会在聊天时参考你确认的课表。</p>
+    <div class="actions">
+      <button id="tt-import" disabled>导入图片 / PDF</button>
+      <button id="tt-parse" class="primary" disabled>识别为课表草稿</button>
+      <button id="tt-cancel" hidden>停止识别</button>
+      <button id="tt-refresh" disabled>重新读取已保存课表</button>
+      <button id="tt-clear" class="danger" disabled>清空课表</button>
+    </div>
+  </div>
+  <div class="timetable-layout">
+    <details class="timetable-source"><summary>原课表 / 图片预览</summary>
+      <p id="tt-source-name">支持 PNG、JPG、WebP 和 PDF，文件最大20MB，PDF最多6页。</p>
+      <button id="tt-show-source" disabled>查看已保存的原文件</button>
+      <p class="hint">点击识别时，图片会发送给百炼。原文件保存在本机；聊天时只发送课表文字给学校平台。</p>
+      <div id="tt-preview"></div>
+    </details>
+    <div class="stack">
+      <div class="timetable-card">
+        <h2>学期信息</h2>
+        <label><input id="tt-enabled" type="checkbox" checked> 启用这份课表（校园业务与通用学习共用）</label>
+        <div class="meta">
+          <label>学期名称<input id="tt-term-name" maxlength="120" placeholder="例如：2026—2027学年第一学期"></label>
+          <label>第一教学周的周一<input id="tt-week-monday" type="date"></label>
+          <label>学期总周数<input id="tt-total-weeks" type="number" min="1" max="53" placeholder="待补充"></label>
+        </div>
+        <p class="hint">周次按第一教学周的周一计算，不是导入当天。图片里没有这些信息时，请自行补充。</p>
+        <p id="tt-saved-info" class="hint"></p>
+        <div id="tt-warnings" role="status"></div>
+      </div>
+      <div class="timetable-card">
+        <h2>课程安排</h2>
+        <p class="hint">同一课程在不同星期或节次上课，请分行填写。周次示例：1-16、1-16(单)、1-8,10-16；空白表示未知。</p>
+        <div class="scroll"><table id="tt-courses">
+          <thead><tr><th>课程</th><th>星期</th><th>起始节</th><th>结束节</th><th>上课周次</th><th>地点 / 校区</th><th>教师</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+        <button id="tt-add-course">添加课程</button>
+        <label class="hint">核对备注（不确定的内容可保留在这里）<textarea id="tt-notes" rows="2" maxlength="2000" placeholder="例如：周三第3—4节的教室看不清，待核对。"></textarea></label>
+      </div>
+      <div class="timetable-card">
+        <h2>学校节次时间</h2>
+        <p class="hint">填写每小节的上下课钟点。未填写时，智小理只能知道“第几节”，无法确定具体时间。</p>
+        <table id="tt-periods"><thead><tr><th>第几节</th><th>开始</th><th>结束</th><th></th></tr></thead><tbody></tbody></table>
+        <div class="actions"><button id="tt-add-period">添加节次</button></div>
+      </div>
+    </div>
+  </div>
+      <p id="tt-status" role="status">正在读取本地课表…</p>
+    </div>
   </section>
   <section data-panel="campus">
     <h3>校园对话</h3>
-    <label>校园 API Key<input id="api-key" type="password" autocomplete="new-password" placeholder="留空沿用已有凭据"></label>
+    <label>校园 API Key<input id="api-key" type="text" autocomplete="off" spellcheck="false" placeholder="填写此功能自己的 API Key"></label>
     <p id="key-status"></p>
     <label>平台用户标识<input id="platform-user" placeholder="留空使用本机自动生成的标识"></label>
     <p>每次启动都会新建对话，并在首次提问时带入本机长期记忆。更改标识也会开启新会话。</p>
@@ -117,7 +206,7 @@
     <h3>长期记忆</h3>
     <label><input id="memory-enabled" type="checkbox" checked>启用长期记忆</label>
     <p>校园业务与通用学习共用这份本机资料和摘要。启用后，两种模式的成功对话都会交给这里配置的百炼模型整理；使用记忆时，会将资料和摘要发给当前模式的聊天模型。不分析性格或品质。</p>
-    <label>百炼 API Key<input id="memory-key" type="password" autocomplete="new-password" placeholder="留空沿用已有凭据"></label>
+    <label>百炼 API Key<input id="memory-key" type="text" autocomplete="off" spellcheck="false" placeholder="填写此功能自己的 API Key"></label>
     <p id="memory-key-status"></p>
     <label>百炼接口地址<input id="memory-base" type="url" spellcheck="false" value="https://dashscope.aliyuncs.com/compatible-mode/v1"></label>
     <p>填写控制台对应地域的 OpenAI 兼容地址；也可填写业务空间专属地址。</p>
@@ -163,5 +252,7 @@
   </section>
   </main></div>
   <footer><div id="status" role="status"><span id="save-state">正在读取设置…</span><span id="save-detail"></span></div><button id="save" disabled>保存更改</button></footer>
+<script src="../services/timetable-utils.js"></script>
+<script src="./campus-timetable.js"></script>
 <script src="./campus-settings.js"></script></body>
 </html>

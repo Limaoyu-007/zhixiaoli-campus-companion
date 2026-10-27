@@ -2,8 +2,6 @@
 'use strict';
 
 const https = require('https');
-const fs = require('fs');
-const path = require('path');
 const { decodeResponse } = require('./campus-response');
 
 // Reuse the existing campus demo endpoint and exact certificate pin.
@@ -11,19 +9,13 @@ const ENDPOINT = 'https://aiagent.cqut.edu.cn:31134/v1/chat-messages';
 const CERTIFICATE = '2F:E2:16:17:B1:75:04:3C:15:EF:D4:AD:AF:D7:3E:69:F2:98:8F:A9:EF:B8:18:10:14:65:C6:6B:9E:72:9B:C6';
 
 function getApiKey(config = {}) {
-  if (process.env.ZXL_API_KEY?.trim()) return process.env.ZXL_API_KEY.trim();
-  if (config.api_key?.trim()) return config.api_key.trim();
-  try {
-    return String(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'campus.local.json'), 'utf8')).api_key || '').trim();
-  } catch (_) {
-    return '';
-  }
+  return config.api_key?.trim() || '';
 }
 
 function send({ query, user, conversationId, signal, onDiagnostic }, config = {}) {
   const report = (event, detail) => { try { onDiagnostic?.(event, detail); } catch (_) {} };
   const key = getApiKey(config);
-  if (!key) return Promise.reject(new Error('请在设置中填写校园 Agent API Key，或配置 ZXL_API_KEY。'));
+  if (!key) return Promise.reject(new Error('请在设置 → 校园对话中填写并保存 API Key。'));
   const payload = JSON.stringify({ input_data: {}, query, user, conversation_id: conversationId || '', mode: 'streaming' });
   const timeout = Math.max(10, Math.min(300, Number(config.timeout_seconds) || 120)) * 1000;
 

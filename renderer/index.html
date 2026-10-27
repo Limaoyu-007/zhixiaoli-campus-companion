@@ -168,7 +168,7 @@
     .markdown-body > :first-child { margin-top: 0; }
     .markdown-body > :last-child { margin-bottom: 0; }
     .reply-warning { margin-top: .8em; padding-top: .6em; border-top: 1px solid rgba(127,127,127,.3); opacity: .8; }
-    .campus-only #portrait-stage { top: calc(var(--campus-reply-space) + 8px); bottom: calc(var(--bar) + 18px); }
+    .campus-only #portrait-stage { top: calc(var(--campus-reply-space) + 8px); bottom: calc(var(--input-height, 32px) + 58px); }
     .campus-only #window-drag-handle { top: calc(var(--campus-reply-space) + 8px); }
     .campus-only #window-zoom-in { top: calc(var(--campus-reply-space) + 42px); }
     .campus-only #window-zoom-out { top: calc(var(--campus-reply-space) + 76px); }
@@ -185,16 +185,18 @@
     }
     #stop-speech-btn[hidden] { display: none; }
     #chat-controls {
-      position: absolute; left: 10px; right: 10px; bottom: calc(var(--bar) + 16px);
+      position: absolute; left: 10px; right: 10px; bottom: calc(var(--input-height, 32px) + 18px);
       display: flex; align-items: center; gap: 6px; pointer-events: all; z-index: 16;
     }
-    #chat-mode, #stop-request-btn {
+    #chat-mode {
       font: inherit; font-size: 12px; color: #335cad; background: #fff;
       border: 1px solid var(--theme-light); border-radius: 9px; padding: 5px 7px;
     }
-    #chat-status { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-      font-size: 11px; color: #496693; background: rgba(255,255,255,.92); border-radius: 7px; padding: 3px 6px; }
-    #stop-request-btn[hidden] { display: none; }
+    .chat-toolbar-space { flex: 1; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    #chat-controls #stop-speech-btn { width: auto; height: 28px; border-radius: 9px; padding: 0 7px; font: inherit; font-size: 12px; }
+    #send-btn[data-busy="true"] svg { display: none; }
+    #send-btn[data-busy="true"]::after { content: ''; width: 10px; height: 10px; border-radius: 2px; background: white; }
     @media (prefers-color-scheme: dark) {
       #chat-bubble .speech-bubble { background: rgba(30,32,44,.97); color: #eee; border-color: rgba(150,165,210,.3); }
       #chat-bubble .speech-bubble[data-kind="user"] { background: #303c59; }
@@ -295,7 +297,7 @@
       padding: 6px 10px;
       display: flex;
       gap: 5px;
-      align-items: center;
+      align-items: flex-end;
       background: transparent;
       pointer-events: all;
       z-index: 15;
@@ -303,10 +305,15 @@
     #chat-input {
       flex: 1;
       min-width: 0;
-      height: var(--bar);
+      height: 32px;
+      max-height: 96px;
+      resize: none;
+      overflow-y: auto;
+      line-height: 20px;
+      font-family: inherit;
       border: 2px solid var(--theme-light);
       border-radius: calc(var(--bar) / 2);
-      padding: 0 14px;
+      padding: 4px 12px;
       background: #ffffff;
       color: #333;
       font-size: calc(var(--bar) * 0.46);
@@ -376,15 +383,15 @@
       <select id="chat-mode" aria-label="对话模式" title="两种模式分别保存会话和上下文" disabled>
         <option value="campus">校园业务</option><option value="study">通用学习</option>
       </select>
-      <span id="chat-status" role="status">正在加载会话…</span>
-      <button id="stop-request-btn" hidden>停止请求</button>
+      <span id="chat-status" role="status" class="sr-only">正在加载会话…</span>
+      <span class="chat-toolbar-space"></span>
+      <button id="stop-speech-btn" title="停止朗读" aria-label="停止朗读" hidden>停止朗读</button>
+      <button id="new-conversation-btn" title="新建对话，保留长期记忆，不撤销已有预约">新会话</button>
+      <button id="settings-btn" title="设置"><svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M449.194667 82.346667a128 128 0 0 1 125.610666 0l284.16 160a128 128 0 0 1 65.194667 111.530666v316.245334a128 128 0 0 1-65.194667 111.530666l-284.16 160a128 128 0 0 1-125.610666 0l-284.16-160a128 128 0 0 1-65.194667-111.530666V353.877333A128 128 0 0 1 165.034667 242.346667z m83.754666 74.410666a42.666667 42.666667 0 0 0-41.898666 0L206.933333 316.714667a42.666667 42.666667 0 0 0-21.76 37.162666v316.245334a42.666667 42.666667 0 0 0 21.76 37.162666l284.16 160a42.666667 42.666667 0 0 0 41.898667 0l284.16-160a42.666667 42.666667 0 0 0 21.76-37.162666V353.877333a42.666667 42.666667 0 0 0-21.76-37.162666zM512 341.333333a170.666667 170.666667 0 1 1 0 341.333334 170.666667 170.666667 0 0 1 0-341.333334z m0 85.333334a85.333333 85.333333 0 1 0 0 170.666666 85.333333 85.333333 0 0 0 0-170.666666z"/></svg></button>
     </div>
     <div id="chat-area">
-      <button id="new-conversation-btn" title="新建对话，保留长期记忆，不撤销已有预约">新会话</button>
-      <input type="text" id="chat-input" placeholder="和智小理说点什么…" autocomplete="off" maxlength="8000">
-      <button id="stop-speech-btn" title="停止朗读" aria-label="停止朗读">■</button>
+      <textarea id="chat-input" rows="1" placeholder="和智小理说点什么…" aria-label="聊天消息" title="Enter 发送，Shift+Enter 换行" autocomplete="off" maxlength="8000"></textarea>
       <button id="send-btn" title="发送"><svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M512 960A448 448 0 1 0 512 64a448 448 0 0 0 0 896z m0 64A512 512 0 1 1 512 0a512 512 0 0 1 0 1024z"/><path d="M448 422.656v217.088L621.632 531.2 448 422.656z m14.336 283.584A51.2 51.2 0 0 1 384 662.848V399.552a51.2 51.2 0 0 1 78.336-43.392l210.56 131.648a51.2 51.2 0 0 1 0 86.784l-210.56 131.648z"/></svg></button>
-      <button id="settings-btn" title="设置"><svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M449.194667 82.346667a128 128 0 0 1 125.610666 0l284.16 160a128 128 0 0 1 65.194667 111.530666v316.245334a128 128 0 0 1-65.194667 111.530666l-284.16 160a128 128 0 0 1-125.610666 0l-284.16-160a128 128 0 0 1-65.194667-111.530666V353.877333A128 128 0 0 1 165.034667 242.346667z m83.754666 74.410666a42.666667 42.666667 0 0 0-41.898666 0L206.933333 316.714667a42.666667 42.666667 0 0 0-21.76 37.162666v316.245334a42.666667 42.666667 0 0 0 21.76 37.162666l284.16 160a42.666667 42.666667 0 0 0 41.898667 0l284.16-160a42.666667 42.666667 0 0 0 21.76-37.162666V353.877333a42.666667 42.666667 0 0 0-21.76-37.162666zM512 341.333333a170.666667 170.666667 0 1 1 0 341.333334 170.666667 170.666667 0 0 1 0-341.333334z m0 85.333334a85.333333 85.333333 0 1 0 0 170.666666 85.333333 85.333333 0 0 0 0-170.666666z"/></svg></button>
     </div>
 
 

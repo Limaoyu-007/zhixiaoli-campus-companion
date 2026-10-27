@@ -11,7 +11,8 @@
     "build:portable": "electron-builder --win portable",
     "build:mac": "electron-builder --mac dmg",
     "build:mac-arm": "electron-builder --mac dmg --arm64",
-    "make-icons": "node scripts/make-icons.js"
+    "make-icons": "node scripts/make-icons.js",
+    "test": "node --test tests/*.test.cjs"
   },
   "dependencies": {
     "cheerio": "1.0.0",
