@@ -1,4 +1,8 @@
 /* Single portrait, subtle idle motion, and explicit click/reply gestures. */
+#portrait-pet .portrait-live2d { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: auto; cursor: grab; }
+#portrait-pet .portrait-live2d[hidden] { display: none; }
+#portrait-pet.live2d #custom-pet-image { visibility: hidden; }
+#portrait-pet.dragging .portrait-live2d { cursor: grabbing; }
 #portrait-pet { position: absolute; inset: 12px 18px 10px; --voice-energy: 0; pointer-events: none; }
 .portrait-motion, .portrait-breath, .portrait-voice { width: 100%; height: 100%; transform-origin: 50% 94%; }
 .portrait-motion { animation: portrait-idle 7s ease-in-out infinite; }
@@ -33,6 +37,40 @@
 .portrait-wait span { width: 5px; height: 5px; border-radius: 50%; background: #5b8cff; animation: portrait-dot 1s ease-in-out infinite; }
 .portrait-wait span:nth-child(2) { animation-delay: .15s; }
 .portrait-wait span:nth-child(3) { animation-delay: .3s; }
+.portrait-whisper {
+  position: absolute;
+  left: 50%;
+  top: 3%;
+  transform: translate(-50%, 0);
+  max-width: 90%;
+  width: max-content;
+  padding: 6px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(91, 140, 255, .28);
+  background: rgba(255, 255, 255, .95);
+  color: #2c3e5d;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+  box-shadow: 0 4px 14px rgba(45, 78, 135, .14);
+  pointer-events: none;
+  z-index: 6;
+  opacity: 1;
+  transition: opacity .22s ease, transform .22s ease;
+}
+.portrait-whisper[hidden] {
+  display: block;
+  opacity: 0;
+  transform: translate(-50%, 6px);
+  visibility: hidden;
+}
+@media (prefers-color-scheme: dark) {
+  .portrait-whisper {
+    background: rgba(30, 34, 48, .95);
+    color: #eef3ff;
+    border-color: rgba(130, 160, 230, .35);
+  }
+}
 .portrait-sparkles { position: absolute; inset: 0; pointer-events: none; }
 .portrait-sparkles i { position: absolute; top: 20%; left: 18%; font-style: normal; font-size: 24px; color: #6b9cff; opacity: 0; }
 .portrait-sparkles i:nth-child(2) { top: 12%; left: 70%; color: #f1c66b; font-size: 28px; }

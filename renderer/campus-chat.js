@@ -9,6 +9,7 @@ const modeSelect = document.getElementById('chat-mode');
 const chatStatus = document.getElementById('chat-status');
 const bubble = document.getElementById('chat-bubble');
 const stream = new window.CampusBubbles(bubble);
+const setupGuide = new window.CampusSetupGuide();
 let pendingBubble = null;
 const replySpeech = new window.CampusSpeech(error => display(error, '智小理'));
 const handle = document.getElementById('window-drag-handle');
@@ -29,6 +30,26 @@ let switching = false;
 let configReady = false;
 const drafts = { campus: '', study: '' };
 
+window.openChatDock = function () {
+  document.body.classList.add('dock-awake');
+};
+
+window.closeChatDock = function () {
+  if (busy || switching) return;
+  if (document.activeElement === input || document.activeElement === modeSelect) {
+    document.activeElement.blur();
+  }
+  document.body.classList.remove('dock-awake');
+};
+
+window.toggleChatDock = function () {
+  if (document.body.classList.contains('dock-awake')) {
+    window.closeChatDock();
+  } else {
+    window.openChatDock();
+  }
+};
+
 function idleStatus() { return '可以发送消息'; }
 function resizeInput() {
   input.style.height = 'auto';
@@ -37,6 +58,7 @@ function resizeInput() {
   document.documentElement.style.setProperty('--input-height', height + 'px');
 }
 input.addEventListener('input', resizeInput);
+input.addEventListener('focus', () => window.openChatDock());
 
 function setBusy(value) {
   busy = value;
@@ -48,6 +70,7 @@ function setBusy(value) {
   newButton.disabled = switching;
   if (!busy) chatStatus.textContent = idleStatus();
   window.setPetState?.(busy ? 'processing' : 'idle');
+  if (busy) window.openChatDock();
 }
 function display(text, label, { markdown = false, warning = '' } = {}) {
   return stream.add({ text, label: '智小理', markdown, warning });
@@ -76,8 +99,12 @@ function showSession(view, { replay = false } = {}) {
     pendingBubble = stream.add({ text: '正在回复…', label: '智小理', pending: true });
   } else if (view.lastError) display(view.lastError, '智小理');
   modeSelect.value = mode;
-  input.placeholder = mode === 'study' ? '问学习问题，查课表或作业…' : '和智小理说点什么…';
+  input.placeholder = mode === 'study' ? '查课表、作业或提问…' : '和智小理聊聊…';
   newButton.title = mode === 'study' ? '清空当前通用学习会话上下文' : '新建校园对话，保留长期记忆，不撤销已有预约';
+  if (configReady && !setupGuide.ready(mode)) {
+    setupGuide.show();
+    window.openChatDock();
+  }
 }
 async function restoreSession({ replay = mode === 'study' } = {}) {
   const generation = ++version;
@@ -137,6 +164,12 @@ async function stopRequest() {
 function sendMessage() {
   const query = input.value.trim();
   if (!query || !ready || busy) return;
+  if (!setupGuide.ready(mode)) {
+    setupGuide.show();
+    window.openChatDock();
+    return;
+  }
+  setupGuide.panel.hidden = true;
   replySpeech.stop();
   replySpeech.prepare();
   if (query.length > 8000) { display('问题请控制在 8000 字以内。', '校园助手'); return; }
@@ -157,6 +190,11 @@ function sendMessage() {
 }
 sendButton.addEventListener('click', () => { if (busy) void stopRequest(); else sendMessage(); });
 input.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    window.closeChatDock();
+    return;
+  }
   if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); sendMessage(); }
 });
 newButton.addEventListener('click', async () => {
@@ -191,6 +229,7 @@ newButton.addEventListener('click', async () => {
     newButton.disabled = false;
   }
 });
+
 api.onChatProgress(result => {
   if ((result.mode || 'campus') !== mode || result.requestId !== requestId || result.sessionId !== currentSession) return;
   chatStatus.textContent = result.text;
@@ -208,7 +247,10 @@ api.onCampusReply(result => {
   finishBubble(answer, { markdown: true, warning: result.warning, feedback: result.feedback });
   if (result.tools?.length) chatStatus.textContent = '工具：' + [...new Set(result.tools.map(tool => tool.label
     + (tool.requiresUserInput ? '（待确认）' : tool.skipped ? '（未执行）' : tool.ok ? '' : '（失败）')))].join('、');
-  if (!window.showPetBusinessFeedback?.(result.feedback)) window.setPetState?.('replying');
+  if (!window.showPetBusinessFeedback?.(result.feedback)) {
+    if (window.showPetReplyReaction) window.showPetReplyReaction({ answer, tools: result.tools, warning: result.warning });
+    else window.setPetState?.('replying');
+  }
   replySpeech.speak(answer);
 });
 api.onCampusError(result => {
@@ -221,9 +263,11 @@ api.onCampusError(result => {
   const feedback = result.uncertain ? { source: 'transport', status: 'uncertain' } : null;
   finishBubble(result.error, { kind: 'error', feedback });
   if (feedback) window.showPetBusinessFeedback?.(feedback);
+  else window.showPetReplyReaction?.({ error: result.error });
 });
 
 function applyConfig(config) {
+  setupGuide.update(config);
   replySpeech.configure(config.speech);
   const ui = config.ui || {};
   document.documentElement.style.setProperty('--fs', (Number(ui.font_size) || 13) + 'px');
@@ -324,5 +368,10 @@ api.getConfig().then(config => {
   mode = config.agent?.mode === 'study' ? 'study' : 'campus';
   modeSelect.value = mode;
   applyConfig(config);
-  return restoreSession();
+  return restoreSession().then(restored => {
+    if (restored) {
+      setupGuide.start(mode);
+      if (!setupGuide.panel.hidden) window.openChatDock();
+    }
+  });
 }).catch(error => display(error.message, '校园助手 · 配置加载失败'));

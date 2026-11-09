@@ -14,7 +14,14 @@ window.CampusSpeech = class {
   }
   configure(config) {
     this.stop();
-    this.config = config || { enabled: true };
+    this.config = { ...(config || { enabled: true }) };
+    if (this.config.enabled && this.config.available === false) {
+      this.config.enabled = false;
+      if (!this.componentWarningShown) {
+        this.componentWarningShown = true;
+        this.onError('朗读组件不可用，本次运行已暂停朗读；请安装完整版本。文字聊天仍可使用。');
+      }
+    }
   }
   prepare() {
     if (!this.config.enabled) return;

@@ -1,5 +1,4 @@
-// Character controls shared by the PSD-layer preview and original portrait.
-// The layer preview is a Canvas rig; neither path loads a Cubism model.
+// Character controls shared by the local Live2D model, Canvas fallback and custom images.
 (function () {
   'use strict';
   const api = window.electronAPI;
@@ -7,22 +6,88 @@
   const image = document.getElementById('custom-pet-image');
   const root = document.createElement('div');
   root.id = 'portrait-pet';
-  root.innerHTML = '<div class="portrait-motion"><div class="portrait-breath"><div class="portrait-voice"></div></div></div><div class="portrait-sparkles" aria-hidden="true"><i>✦</i><i>✧</i><i>✦</i></div><div class="portrait-wait" hidden aria-label="正在等待回复"><span></span><span></span><span></span></div>';
+  root.innerHTML = '<div class="portrait-motion"><div class="portrait-breath"><div class="portrait-voice"></div></div></div><div class="portrait-sparkles" aria-hidden="true"><i>✦</i><i>✧</i><i>✦</i></div><div class="portrait-whisper" hidden aria-live="polite"></div><div class="portrait-wait" hidden aria-label="正在等待回复"><span></span><span></span><span></span></div>';
   layer.appendChild(root);
   root.querySelector('.portrait-voice').appendChild(image);
   const wave = new window.PortraitWave(image);
   const blink = new window.PortraitBlink(image);
   const mouth = new window.PortraitMouth(image);
-  const layered = new window.PortraitLayered(image, onLayeredChange);
+  const layered = new window.PortraitLive2D(image, onLayeredChange);
   image.alt = '智小理';
   const motion = root.querySelector('.portrait-motion');
+  const whisper = root.querySelector('.portrait-whisper');
   const wait = root.querySelector('.portrait-wait');
   let currentURL = '';
   let pixels = null;
   let imageWidth = 0;
   let imageHeight = 0;
   let actionTimer = null;
+  let whisperTimer = null;
   let gesture = null;
+  let dragFrame = null, dragDX = 0, dragDY = 0;
+  const lastTouchIndex = { head: -1, hand: -1, body: -1 };
+
+  const TOUCH_LINES = {
+    head: [
+      '摸摸头，今天也要元气满满哦～',
+      '嘿嘿，智小理随时待命！',
+      '有什么校园问题或作业想查，尽管问我呀～',
+      '发丝都被你揉乱啦，不过还是很开心～',
+    ],
+    body: [
+      '收到！智小理精神百倍～',
+      '今天想查课表、看学习通作业，还是办校园业务呀？',
+      '噔噔！充能完毕，随时陪你出发～',
+      '在呢在呢，戳我一下就有好运气哦 ✦',
+    ],
+  };
+
+  function getHandLines() {
+    const hour = new Date().getHours();
+    const timeGreeting = hour >= 5 && hour < 11
+      ? '早安呀！新的一天，智小理陪你一起加油～'
+      : hour >= 11 && hour < 14
+        ? '中午好～忙完别忘了好好吃午饭、休息一会儿哦！'
+        : hour >= 14 && hour < 18
+          ? '下午好呀！挥挥手，累了就伸个懒腰吧～'
+          : hour >= 18 && hour < 23
+            ? '晚上好～今天辛苦啦，还有什么任务需要收尾吗？'
+            : '夜深啦，早点休息哦，明天的事交给明天的我们～';
+    return [
+      timeGreeting,
+      '击个掌！祝你今天上课、办事都顺顺利利～',
+      '嗨～叫我一声，随时陪你同行！',
+    ];
+  }
+
+  function pickTouchLine(zone) {
+    const pool = zone === 'hand' ? getHandLines() : (TOUCH_LINES[zone] || TOUCH_LINES.body);
+    let idx = Math.floor(Math.random() * pool.length);
+    if (pool.length > 1 && idx === lastTouchIndex[zone]) idx = (idx + 1) % pool.length;
+    lastTouchIndex[zone] = idx;
+    return pool[idx];
+  }
+
+  function showWhisper(text, duration = 3200) {
+    if (!whisper || !text) return;
+    clearTimeout(whisperTimer);
+    whisper.textContent = text;
+    whisper.hidden = false;
+    whisperTimer = setTimeout(() => { whisper.hidden = true; }, duration);
+  }
+
+  function hideWhisper() {
+    clearTimeout(whisperTimer);
+    whisperTimer = null;
+    if (whisper) whisper.hidden = true;
+  }
+
+  function flushDrag() {
+    if (dragFrame !== null) cancelAnimationFrame(dragFrame);
+    dragFrame = null;
+    if (dragDX || dragDY) api.windowDrag(dragDX, dragDY);
+    dragDX = 0; dragDY = 0;
+  }
   let waiting = false;
   let currentScale = 1;
   let lastAction = -Infinity;
@@ -130,24 +195,31 @@
     return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
   }
   function hitUI(x, y) {
-    if (contains(document.getElementById('chat-area'), x, y)) return true;
-    if (contains(document.getElementById('chat-controls'), x, y)) return true;
+    const guide = document.getElementById('setup-guide');
+    if (guide && !guide.hidden && contains(guide, x, y)) return true;
+    const dockVisible = document.body.classList.contains('dock-awake') ||
+      Boolean(document.activeElement?.closest?.('#chat-area, #chat-controls'));
+    if (dockVisible) {
+      if (contains(document.getElementById('chat-area'), x, y)) return true;
+      if (contains(document.getElementById('chat-controls'), x, y)) return true;
+    }
     for (const element of document.querySelectorAll('.speech-bubble:not(.leaving), #window-drag-handle.visible, .window-zoom-btn.visible')) {
       if (contains(element, x, y)) return true;
     }
     return false;
   }
   document.addEventListener('mousemove', event => {
-    if (window._windowDragActive) { face().resetGaze(); return; }
+    if (window._windowDragActive) return;
     face().followPointer(event.clientX, event.clientY);
-    api.setIgnoreMouse(!(hitUI(event.clientX, event.clientY) || hitPortrait(event.clientX, event.clientY)));
+    const active = hitUI(event.clientX, event.clientY) || hitPortrait(event.clientX, event.clientY);
+    api.setIgnoreMouse(!active);
   });
   document.addEventListener('mouseleave', () => {
     face().resetGaze();
     if (!window._windowDragActive) api.setIgnoreMouse(true);
   });
 
-  function act(name = 'bounce', { sparkles = true, force = false, source = 'manual' } = {}) {
+  function act(name = 'bounce', { sparkles = true, force = false, source = 'manual', expression = null, duration = 1800 } = {}) {
     const now = performance.now();
     const priority = source === 'business' ? 3 : source === 'reply' ? 2 : 1;
     if (source === 'manual' && manualBlocked()) return false;
@@ -161,7 +233,8 @@
     // Recreate the CSS animation, including consecutive clicks on the same action.
     void motion.offsetWidth;
     if (!layered.active) motion.classList.add(`action-${['bounce', 'sway', 'nod'].includes(name) ? name : 'bounce'}`);
-    face().setExpression(name === 'bounce' ? 'happy' : name === 'sway' ? 'curious' : 'gentle', { duration: 1800, priority });
+    const targetExpression = expression || (name === 'bounce' ? 'happy' : name === 'sway' ? 'curious' : 'gentle');
+    face().setExpression(targetExpression, { duration, priority });
     if (sparkles) root.classList.add('show-sparkles');
     actionTimer = setTimeout(() => {
       motion.classList.remove('action-bounce', 'action-sway', 'action-nod');
@@ -174,16 +247,21 @@
   function reactToTouch(zone) {
     if (manualBlocked()) return;
     if (zone === 'hand') {
-      waveHello();
+      if (waveHello()) showWhisper(pickTouchLine('hand'), 3400);
     } else if (zone === 'head') {
       // One cooldown covers the nod and blink, including repeated head clicks.
-      if (act('nod', { sparkles: false })) face().blink();
-    } else act('bounce');
+      if (act('nod', { sparkles: false, expression: 'gentle', duration: 2000 })) {
+        face().blink();
+        showWhisper(pickTouchLine('head'), 3200);
+      }
+    } else if (act('bounce', { sparkles: true, expression: 'happy', duration: 2000 })) {
+      showWhisper(pickTouchLine('body'), 3200);
+    }
   }
   function waveHello() {
     const now = performance.now();
-    if (manualBlocked() || now - lastAction < 500 || now < actionUntil && actionPriority > 1) return;
-    if (layered.active && !layered.gesture('wave', { priority: 1 })) return;
+    if (manualBlocked() || now - lastAction < 500 || now < actionUntil && actionPriority > 1) return false;
+    if (layered.active && !layered.gesture('wave', { priority: 1 })) return false;
     lastAction = now;
     clearActionVisuals();
     actionPriority = 1; actionUntil = now + 2400;
@@ -191,11 +269,13 @@
     if (layered.active) {
       layered.setExpression('gentle', { duration: 2500 });
     } else void wave.play();
+    return true;
   }
   root.addEventListener('pointerdown', event => {
     if (event.button !== 0 || !event.isPrimary || gesture) return;
     const point = portraitPoint(event.clientX, event.clientY);
     if (!point) return;
+    api.setPetWalking(0);
     event.preventDefault();
     root.setPointerCapture(event.pointerId);
     gesture = { pointerId: event.pointerId, imageURL: currentURL, zone: touchZone(point),
@@ -208,25 +288,39 @@
     if (!gesture.moved && Math.hypot(event.screenX - gesture.startX, event.screenY - gesture.startY) < 5) return;
     if (!gesture.moved) {
       clearActionVisuals();
+      hideWhisper();
       if (layered.active) layered.cancelGesture();
+      face().resetGaze();
+      gesture.moved = true;
+      window._windowDragActive = true;
+      root.classList.add('dragging');
     }
-    gesture.moved = true;
-    face().resetGaze();
-    window._windowDragActive = true;
-    root.classList.add('dragging');
-    api.windowDrag(event.screenX - gesture.x, event.screenY - gesture.y);
+    const dx = event.screenX - gesture.x;
+    const dy = event.screenY - gesture.y;
     gesture.x = event.screenX;
     gesture.y = event.screenY;
+    if (!dx && !dy) return;
+    if (dragFrame === null) {
+      api.windowDrag(dx, dy);
+      dragFrame = requestAnimationFrame(flushDrag);
+    } else {
+      dragDX += dx;
+      dragDY += dy;
+    }
   });
   function endGesture(event) {
     if (!gesture || event.pointerId !== gesture.pointerId) return;
+    flushDrag();
     const clicked = !gesture.moved && event.type === 'pointerup' && currentURL === gesture.imageURL &&
       Math.hypot(event.screenX - gesture.startX, event.screenY - gesture.startY) < 5;
     const zone = gesture.zone;
     gesture = null;
     window._windowDragActive = false;
     root.classList.remove('dragging');
-    if (clicked) reactToTouch(zone);
+    if (clicked) {
+      window.toggleChatDock?.();
+      reactToTouch(zone);
+    }
   }
   root.addEventListener('pointerup', endGesture);
   root.addEventListener('pointercancel', endGesture);
@@ -250,7 +344,9 @@
   window.setPetState = state => {
     const nextWaiting = state === 'processing';
     if (nextWaiting && !waiting) {
+      api.setPetWalking(0);
       clearActionVisuals();
+      hideWhisper();
       feedbackUntil = 0;
       lastAction = -Infinity;
       if (layered.active) layered.clearPresentation();
@@ -265,6 +361,32 @@
     if (waiting && !nextWaiting) root.classList.remove('waiting');
     waiting = nextWaiting;
   };
+  // Semantic reply -> pet expression & gesture linkage (does not alter business tool feedback badges).
+  window.showPetReplyReaction = ({ answer = '', tools = [], warning = '', error = '' } = {}) => {
+    window.setPetState('idle');
+    if (performance.now() < feedbackUntil) return;
+    const text = String(answer || '').trim();
+    const needsChoice = Array.isArray(tools) && tools.some(t => t.requiresUserInput);
+    const toolFailed = Array.isArray(tools) && tools.some(t => !t.ok && !t.requiresUserInput && !t.skipped);
+
+    if (error || warning || toolFailed) {
+      act(error ? 'sway' : 'nod', { sparkles: false, force: true, source: 'reply', expression: 'concerned', duration: 2400 });
+      return;
+    }
+    if (needsChoice || (text.length < 180 && (/[？?]\s*$/.test(text) || /(请问|哪一门|哪个课程|请确认|请选择)/.test(text)))) {
+      act('sway', { sparkles: false, force: true, source: 'reply', expression: 'curious', duration: 2400 });
+      return;
+    }
+    if (/(未交|待提交|尚未提交|截止时间|即将截止|已逾期|抓紧时间|注意截止)/.test(text)) {
+      act('nod', { sparkles: false, force: true, source: 'reply', expression: 'concerned', duration: 2300 });
+      return;
+    }
+    if (/(太棒|恭喜|已完成|全部提交|没有待交|没有未交|暂无待交|今天没课|今日无课|没有课程安排|好好休息|周末愉快|搞定|顺利)/.test(text)) {
+      act('bounce', { sparkles: true, force: true, source: 'reply', expression: 'happy', duration: 2400 });
+      return;
+    }
+    act('nod', { sparkles: false, force: true, source: 'reply', expression: 'gentle', duration: 2000 });
+  };
   window.showPetBusinessFeedback = value => {
     const feedback = window.CampusFeedback.describe(value);
     if (!feedback) return false;
@@ -272,13 +394,14 @@
     const action = celebrate ? 'bounce' : feedback.status === 'failed' ? 'sway' : 'nod';
     // A result must not be dropped because a manual interaction just happened.
     feedbackUntil = performance.now() + 2300;
-    act(action, { sparkles: celebrate, force: true, source: 'business' });
-    face().setExpression(celebrate ? 'happy' : feedback.status === 'failed' ? 'concerned' : 'gentle', { duration: 2300, priority: 3 });
+    const expression = celebrate ? 'happy' : feedback.status === 'failed' ? 'concerned' : 'gentle';
+    act(action, { sparkles: celebrate, force: true, source: 'business', expression, duration: 2300 });
     return true;
   };
   // Playback amplitude drives a small mouth opening as well as the body pulse.
   window.setPetSpeaking = active => {
     speechPlaying = Boolean(active);
+    if (speechPlaying) api.setPetWalking(0);
     root.classList.toggle('speaking', speechPlaying);
     if (layered.active) layered.setSpeaking(speechPlaying);
     if (!speechPlaying) {
@@ -295,6 +418,18 @@
     if (amplitude > 0) voiceResetTimer = setTimeout(() => window.setLipSync(0), 220);
   };
   api.onPortraitAction(name => {
+    if (name === 'mouth-preview') {
+      if (!manualBlocked() && layered.live) layered.previewMouth();
+      return;
+    }
+    if (name === 'walk-left' || name === 'walk-right' || name === 'walk-stop') {
+      if (name === 'walk-stop') { api.setPetWalking(0); return; }
+      if (!manualBlocked() && layered.available) {
+        hideWhisper();
+        api.setPetWalking(name === 'walk-left' ? -1 : 1);
+      }
+      return;
+    }
     if (name !== 'reset' && manualBlocked()) return;
     if (name === 'wave') {
       waveHello();
@@ -306,6 +441,7 @@
     }
     else if (name === 'reset') {
       clearActionVisuals();
+      hideWhisper();
       feedbackUntil = 0;
       if (layered.active) layered.reset();
       if (layered.active) layered.setSpeaking(speechPlaying);
@@ -318,6 +454,10 @@
     layeredPreferred = config.ui?.layered_portrait !== false;
     syncRendering();
   });
+  api.onPetWalking(state => {
+    if (state.walking) hideWhisper();
+    layered.setMoving(state.walking, state.direction);
+  });
   api.getConfig().then(config => {
     currentScale = Number(config.window?.scale) || 1;
     layeredPreferred = config.ui?.layered_portrait !== false;
@@ -327,6 +467,7 @@
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       clearActionVisuals();
+      hideWhisper();
       feedbackUntil = 0;
       window.setPetSpeaking(false);
       window.setLipSync(0);
@@ -338,6 +479,7 @@
     blink.destroy();
     mouth.destroy();
     clearTimeout(actionTimer);
+    clearTimeout(whisperTimer);
     clearTimeout(voiceResetTimer);
   }, { once: true });
 })();

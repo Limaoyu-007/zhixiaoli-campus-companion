@@ -1,7 +1,7 @@
 {
   "name": "zhixiaoli-campus-companion",
   "version": "1.0.3",
-  "description": "智小理·校园伴行：校园业务与通用学习桌面助手",
+  "description": "智小理·校园陪伴：校园业务与通用学习桌面助手",
   "license": "Apache-2.0",
   "main": "main.js",
   "scripts": {
@@ -12,6 +12,7 @@
     "build:mac": "electron-builder --mac dmg",
     "build:mac-arm": "electron-builder --mac dmg --arm64",
     "make-icons": "node scripts/make-icons.js",
+    "prepare:tts": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/prepare-tts-runtime.ps1",
     "test": "node --test tests/*.test.cjs"
   },
   "dependencies": {
@@ -27,7 +28,8 @@
   },
   "build": {
     "appId": "cn.zhixiaoli.campuscompanion",
-    "productName": "智小理·校园伴行",
+    "productName": "智小理·校园陪伴",
+    "beforePack": "scripts/before-pack.cjs",
     "directories": {
       "output": "dist"
     },
@@ -39,10 +41,14 @@
       "NOTICE",
       "README.md",
       "config.example.json",
+      "distribution.defaults.json",
       "renderer/**/*",
       "services/**/*",
       "libs/marked.umd.js",
       "libs/purify.min.js",
+      "libs/pixi.min.js",
+      "libs/cubism4.min.js",
+      "libs/live2dcubismcore.min.js",
       "libs/licenses/**/*",
       "assets/brand/**/*",
       "assets/zhixiaoli/**/*",
@@ -50,11 +56,11 @@
       "node_modules/pdfjs-dist/cmaps/**/*",
       "node_modules/pdfjs-dist/standard_fonts/**/*",
       "node_modules/pdfjs-dist/wasm/**/*",
-      ".runtime/python/**/*",
+      ".runtime/tts-python/**/*",
       "requirements-tts.txt"
     ],
     "asarUnpack": [
-      ".runtime/python/**/*",
+      ".runtime/tts-python/**/*",
       "assets/**/*"
     ],
     "win": {
@@ -85,7 +91,7 @@
     },
     "dmg": {
       "artifactName": "Zhixiaoli-Campus-${version}-${arch}.dmg",
-      "title": "智小理·校园伴行 ${version}"
+      "title": "智小理·校园陪伴 ${version}"
     },
     "portable": {
       "artifactName": "Zhixiaoli-Campus-${version}.exe"
@@ -96,7 +102,7 @@
       "perMachine": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "智小理·校园伴行",
+      "shortcutName": "智小理·校园陪伴",
       "installerLanguages": [
         "en_US"
       ],

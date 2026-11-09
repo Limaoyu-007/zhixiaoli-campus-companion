@@ -1,4 +1,4 @@
-智小理·校园伴行 / Zhixiaoli Campus Companion
+智小理·校园陪伴 / Zhixiaoli Campus Companion
 
 This application includes modified code derived from OpenDesktopPet.
 Original project: OpenDesktopPet
@@ -23,5 +23,8 @@ Build-time dependency:
 - sharp, Copyright Lovell Fuller and contributors, Apache-2.0 AND LGPL-3.0-or-later.
   Used by scripts/make-icons.js, not included as an application runtime dependency.
 
-The legacy Live2D Cubism runtime, PixiJS files and upstream character assets
-have been removed. Current character rendering uses the local Canvas implementation.
+The separately managed Live2D demonstration environment uses PixiJS 6.5.10 (MIT),
+pixi-live2d-display 0.4.0 (MIT, with Live2D Cubism Framework components),
+and Live2D Cubism Core 06. Cubism Core and Framework retain their separate
+Live2D licenses; the application's Apache-2.0 license does not cover them.
+See libs/licenses/live2d-runtime-sources.md and embedded library notices.

@@ -2,13 +2,35 @@
 'use strict';
 const { spawn } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 
 class CampusTTSService {
-  constructor() { this.active = null; }
+  constructor({ packaged = false } = {}) { this.active = null; this.unavailable = false; this.packaged = packaged; }
   stop() { this.active?.cancel(); }
+  isAvailable() { return !this.unavailable && Boolean(this.runtime()); }
+
+  runtime() {
+    const root = path.join(__dirname, '..').replace(/app\.asar([\\/]|$)/, 'app.asar.unpacked$1');
+    const bundled = path.join(root, '.runtime', 'tts-python');
+    if (process.platform === 'win32' && fs.existsSync(path.join(bundled, 'python.exe')) &&
+        fs.existsSync(path.join(bundled, 'Lib', 'site-packages', 'edge_tts', '__main__.py'))) {
+      return { executable: path.join(bundled, 'python.exe'), dependencies: path.join(bundled, 'Lib', 'site-packages') };
+    }
+    // Packaged Windows builds must not depend on the user's PATH or Python.
+    if (process.platform === 'win32' && this.packaged) return null;
+    const dependencies = path.join(root, '.runtime', 'python');
+    if (!fs.existsSync(path.join(dependencies, 'edge_tts', '__main__.py'))) return null;
+    return { executable: process.env.ZXL_TTS_PYTHON || 'python', dependencies };
+  }
 
   synthesize(text, config) {
     this.stop();
+    if (this.unavailable) return Promise.reject(Object.assign(new Error('朗读组件不可用'), { cancelled: true }));
+    const runtime = this.runtime();
+    if (!runtime) {
+      this.unavailable = true;
+      return Promise.reject(new Error('朗读组件缺失，本次运行已暂停朗读；请重新安装完整版本。文字回复不受影响。'));
+    }
     return new Promise((resolve, reject) => {
       let finished = false;
       let timer;
@@ -23,14 +45,13 @@ class CampusTTSService {
       };
       this.active = job;
       // Python cannot import inside app.asar; dependencies are unpacked when packaged.
-      const runtime = path.join(__dirname, '..', '.runtime', 'python').replace(/app\.asar([\\/])/, 'app.asar.unpacked$1');
       const rate = Math.max(-30, Math.min(30, Number(config.rate) || 0));
       const voice = config.voice === 'zh-CN-YunxiNeural' ? config.voice : 'zh-CN-XiaoxiaoNeural';
-      child = spawn(process.env.ZXL_TTS_PYTHON || 'python', [
+      child = spawn(runtime.executable, [
         '-m', 'edge_tts', `--text=${text}`, `--voice=${voice}`, `--rate=${rate >= 0 ? '+' : ''}${rate}%`, '--write-media=-',
       ], {
         windowsHide: true,
-        env: { ...process.env, PYTHONPATH: [runtime, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter), PYTHONIOENCODING: 'utf-8' },
+        env: { ...process.env, PYTHONPATH: runtime.dependencies, PYTHONIOENCODING: 'utf-8', PYTHONNOUSERSITE: '1', PYTHONDONTWRITEBYTECODE: '1' },
         stdio: ['ignore', 'pipe', 'pipe'],
       });
       const chunks = [];
@@ -41,7 +62,10 @@ class CampusTTSService {
         chunks.push(chunk);
       });
       child.stderr.on('data', () => {});
-      child.on('error', () => finish(new Error('语音组件无法启动，请检查 Python 和朗读依赖；文字回复不受影响。')));
+      child.on('error', () => {
+        this.unavailable = true;
+        finish(new Error('朗读组件无法启动，本次运行已暂停朗读；请重新安装完整版本。文字回复不受影响。'));
+      });
       child.on('close', code => {
         if (finished) return;
         if (code !== 0 || bytes === 0) { finish(new Error('语音生成失败，请检查网络或稍后再试；文字回复不受影响。')); return; }

@@ -1,10 +1,10 @@
 # 当前源码地图
 
-2026-10-27更新。本文描述当前运行代码。最新输入区、独立凭据与内嵌课表编辑约定先读CONTEXT.md；10月24日阶段总结保留为历史背景。
+2026-11-05更新。本文描述当前运行代码。最新输入区、独立凭据与内嵌课表编辑约定先读CONTEXT.md；10月24日阶段总结保留为历史背景。
 
 ## 阅读顺序
 
-1. main.js：桌面生命周期、配置、窗口、IPC和双模式路由。
+1. main.js：桌面生命周期、窗口、IPC和服务装配；配置规则在services/app-config.js，双模式对话在services/chat-coordinator.js。
 2. preload.js：页面能用的IPC接口。
 3. renderer/campus-chat.js：提问、切换、新会话、停止、进度与回复展示。
 4. services/agent/local-agent-runtime.js：模型/工具循环。
@@ -13,7 +13,7 @@
 
 ## 调用链
 
-    聊天页面 → preload.js → main.js
+    聊天页面 → preload.js → chat-coordinator.js（由main.js装配）
       校园：memory + timetable背景 → campus-agent-service
             → 学校平台 → campus-response → 回复/业务反馈
       学习：memory背景 + 当前历史 → LocalAgentRuntime
@@ -27,15 +27,20 @@
 
 | 模块 | 职责 |
 | --- | --- |
-| main.js / preload.js / start.js | 桌面入口、IPC桥、启动 |
-| renderer/index.html | 主窗口布局和控件样式 |
-| renderer/campus-chat.js | 两种模式共用聊天控制 |
+| main.js / preload.js / start.js | 桌面入口、IPC桥、启动与服务装配 |
+| services/app-config.js / config-store.js | 配置默认值、分发预置、设置校验、凭据加解密与密文级解密缓存、分类变更比对与公开视图；配置文件保存、备份、恢复与内存克隆缓存 |
+| services/chat-coordinator.js | 双模式会话、请求生命周期、取消、记忆/课表编排与回复IPC；向主进程提供配置变更与退出时的取消入口 |
+| renderer/campus-setup.js / .css | 首次使用引导、配置状态与设置入口 |
+| renderer/index.html | 主窗口布局与268px居中云朵对话卡样式（上层无框输入行+下层26px微底栏合二为一，带指向人物脚底的气泡尖角） |
+| renderer/campus-chat.js | 两种模式共用聊天控制、点击人物唤起/收起对话卡（openChatDock/closeChatDock/toggleChatDock） |
 | renderer/campus-bubbles.js / campus-markdown.js | 气泡和Markdown |
 | renderer/campus-feedback.js / services/campus-answer.js | 可信业务反馈、正文过滤 |
 | renderer/campus-settings.* | 统一设置、明文独立API Key、资料及课表统一保存、日志入口 |
 | renderer/campus-timetable.js | 设置页内的PDF/图片导入、识别草稿与核对编辑；CampusTimetableEditor协调草稿、忙碌状态与保存 |
 | renderer/campus-speech.js | 音频播放/停止、音量与口型状态 |
-| renderer/portrait-pet.js / .css | 人物交互、命中/穿透、展示优先级 |
+| renderer/portrait-pet.js / .css | 人物交互、分区触摸微台词（.portrait-whisper）、回复语义神态联动、命中/穿透、展示优先级 |
+| renderer/portrait-live2d.js | 正面/侧面模型切换、参数驱动、口腔UV补偿、Canvas回退 |
+| services/portrait-asset.js | 旧默认图片URL归一化 |
 | renderer/portrait-layered.js / portrait-mesh.js | 分层、网格、统一动作时钟 |
 | renderer/portrait-blink.js / portrait-mouth.js / portrait-wave.js | 完整立绘模式眨眼、口型和挥手 |
 | services/agent/local-agent-runtime.js | 系统提示词、记忆背景、工具循环和预算 |
@@ -59,7 +64,7 @@
 
 配置、会话、长期记忆、课表和日志保存在userData。品牌改名后仍兼容open-desktop-pet目录，明确指定user-data-dir则尊重指定目录。
 
-main-campus.js/preload-campus.js已统一为main.js/preload.js；原版旧同名入口先备份后删除。原聊天/设置/调试页、Live2D控制器/库和上游角色已移除，没有Vue、摄像头、截屏或旧多供应商语音链路。
+main-campus.js/preload-campus.js已统一为main.js/preload.js；原版旧同名入口先备份后删除。原聊天/设置/调试页与上游角色已移除；2026-11-03为智小理模型重新接入本地Pixi/Live2D库与portrait-live2d控制器。没有Vue、摄像头、截屏或旧多供应商语音链路。
 
 2026-10-27收尾验证覆盖独立Electron交互、后端回归和脚本语法；真实外部模型/平台与安装包尚未验收。后端测试入口为tests/review-backend.test.cjs，可通过npm test运行。Runtime仍在主进程执行，未拆独立服务或工具子进程。
 

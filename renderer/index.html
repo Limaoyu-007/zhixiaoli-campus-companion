@@ -27,13 +27,14 @@
       --bar: 28px;
       --theme: #5B8CFF;
       --theme2: #5B8CFF;
-      --theme-gradient: linear-gradient(135deg, #5B8CFF, #5B8CFF);
+      --theme-gradient: linear-gradient(135deg, #689bff 0%, #3d70f5 100%);
       --theme-light: #AFCBFF;
       --theme-bg: #EAF2FF;
-      --theme-dark: #3a6ee8;
+      --theme-dark: #2f62e0;
       --theme-shadow: rgba(91,140,255,0.4);
       --theme-shadow-soft: rgba(91,140,255,0.18);
       --campus-reply-space: clamp(210px, 42vh, 360px);
+      --dock-width: min(268px, calc(100% - 24px));
     }
     html, body {
       width: 100%; height: 100%;
@@ -85,33 +86,34 @@
       z-index: 10;
     }
 
-    /* ─── 聊天气泡 ─────────────────────────────────────────── */
+    /* ─── 聊天气泡（居中收窄，与人物宽度协调） ─────────────── */
     #chat-bubble {
       position: absolute;
       top: 8px;
-      left: 12px;
-      right: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(300px, calc(100% - 24px));
       height: calc(var(--campus-reply-space) - 12px);
       overflow: hidden;
       font-size: var(--fs);
-      line-height: 1.6;
+      line-height: 1.55;
       pointer-events: none;
       z-index: 10;
       mask-image: linear-gradient(to bottom, transparent, black 20px, black);
     }
     #chat-bubble .speech-bubble {
       position: absolute;
-      left: 3px;
-      bottom: 10px;
+      left: 2px;
+      bottom: 8px;
       width: fit-content;
-      max-width: calc(100% - 18px);
-      max-height: calc(100% - 28px);
-      padding: 10px 14px 12px;
+      max-width: calc(100% - 8px);
+      max-height: calc(100% - 24px);
+      padding: 9px 13px 10px;
       border-radius: 16px 16px 16px 4px;
-      border: 1px solid rgba(127,127,127,.22);
-      background: rgba(255,255,255,.97);
-      color: #29334a;
-      box-shadow: 0 4px 14px rgba(0,0,0,.1);
+      border: 1.5px solid rgba(120, 166, 255, .48);
+      background: linear-gradient(180deg, rgba(255, 255, 255, .98) 0%, rgba(242, 247, 255, .97) 100%);
+      color: #24324b;
+      box-shadow: 0 8px 20px rgba(48, 92, 190, .14), inset 0 1px 0 #ffffff;
       display: flex;
       flex-direction: column;
       pointer-events: auto;
@@ -120,14 +122,19 @@
       transition: transform .25s ease, opacity .25s ease;
     }
     #chat-bubble .speech-bubble[data-kind="user"] {
-      left: auto; right: 3px; max-width: 85%;
-      background: #eaf0ff; border-radius: 16px 16px 4px 16px;
+      left: auto; right: 2px; max-width: 88%;
+      background: linear-gradient(135deg, #5b8cff 0%, #4374f0 100%);
+      color: #ffffff;
+      border-color: rgba(91, 140, 255, .6);
+      border-radius: 16px 16px 4px 16px;
+      box-shadow: 0 6px 16px rgba(67, 116, 240, .24);
     }
-    #chat-bubble .speech-bubble[data-kind="error"] { border-color: #d89b62; }
+    #chat-bubble .speech-bubble[data-kind="user"] .speech-author { color: rgba(255, 255, 255, .85); }
+    #chat-bubble .speech-bubble[data-kind="error"] { border-color: #e69d5c; }
     #chat-bubble .speech-bubble.entering { opacity: 0; transform: translateY(calc(var(--bubble-y, 0px) + 14px)); }
     #chat-bubble .speech-bubble.leaving { opacity: 0; pointer-events: none; transform: translateY(calc(var(--bubble-y, 0px) - 16px)); }
-    .speech-author { color: var(--theme); font-size: 11px; margin-bottom: 4px; flex-shrink: 0; }
-    .speech-outcome { align-self: flex-start; flex-shrink: 0; margin: 0 0 7px; padding: 2px 8px;
+    .speech-author { color: var(--theme); font-size: 11px; font-weight: 600; margin-bottom: 3px; flex-shrink: 0; }
+    .speech-outcome { align-self: flex-start; flex-shrink: 0; margin: 0 0 6px; padding: 2px 8px;
       border-radius: 8px; font-size: 11px; color: #286f5c; background: rgba(88,177,145,.16); }
     .speech-outcome[hidden] { display: none; }
     .speech-outcome[data-status="failed"] { color: #a64e49; background: rgba(206,100,91,.14); }
@@ -143,69 +150,258 @@
     }
     .speech-body::-webkit-scrollbar { width: 3px; height: 3px; }
     .speech-body::-webkit-scrollbar-thumb { background: var(--theme-shadow); border-radius: 2px; }
-    .speech-body.markdown-body { white-space: normal; line-height: 1.65; }
+    .speech-body.markdown-body { white-space: normal; line-height: 1.6; }
     .pending .speech-body { opacity: .65; }
-    .markdown-body p { margin: 0 0 .65em; }
+    .markdown-body p { margin: 0 0 .55em; }
     .markdown-body strong { font-weight: 700; }
-    .markdown-body ul, .markdown-body ol { margin: .4em 0 .7em; padding-left: 1.6em; }
-    .markdown-body li { margin: .25em 0; }
-    .markdown-body li > p { margin: .25em 0; }
-    .markdown-body li > ul, .markdown-body li > ol { margin: .25em 0; }
+    .markdown-body ul, .markdown-body ol { margin: .35em 0 .6em; padding-left: 1.4em; }
+    .markdown-body li { margin: .2em 0; }
+    .markdown-body li > p { margin: .2em 0; }
+    .markdown-body li > ul, .markdown-body li > ol { margin: .2em 0; }
     .markdown-body h1, .markdown-body h2, .markdown-body h3,
-    .markdown-body h4, .markdown-body h5, .markdown-body h6 { margin: .8em 0 .4em; line-height: 1.4; }
-    .markdown-body h1 { font-size: 1.35em; }
-    .markdown-body h2 { font-size: 1.2em; }
-    .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 { font-size: 1.05em; }
-    .markdown-body code { font: .92em/1.5 Consolas, monospace; background: rgba(127,127,127,.14); padding: .1em .3em; border-radius: 4px; }
-    .markdown-body pre { margin: .6em 0; padding: 10px; border-radius: 7px; background: rgba(127,127,127,.12); overflow-x: auto; white-space: pre; }
+    .markdown-body h4, .markdown-body h5, .markdown-body h6 { margin: .7em 0 .35em; line-height: 1.35; }
+    .markdown-body h1 { font-size: 1.25em; }
+    .markdown-body h2 { font-size: 1.15em; }
+    .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 { font-size: 1.02em; }
+    .markdown-body code { font: .92em/1.45 Consolas, monospace; background: rgba(91,140,255,.12); padding: .1em .3em; border-radius: 4px; }
+    .markdown-body pre { margin: .5em 0; padding: 8px; border-radius: 7px; background: rgba(91,140,255,.09); overflow-x: auto; white-space: pre; }
     .markdown-body pre code { background: none; padding: 0; border-radius: 0; }
-    .markdown-body blockquote { margin: .6em 0; padding-left: 10px; border-left: 3px solid var(--theme); }
-    .markdown-body hr { border: 0; border-top: 1px solid rgba(127,127,127,.3); margin: .8em 0; }
-    .markdown-body table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: .6em 0; }
-    .markdown-body th, .markdown-body td { border: 1px solid rgba(127,127,127,.35); padding: 5px 9px; min-width: 64px; }
-    .markdown-body th { background: rgba(127,127,127,.12); }
+    .markdown-body blockquote { margin: .5em 0; padding-left: 9px; border-left: 3px solid var(--theme); }
+    .markdown-body hr { border: 0; border-top: 1px solid rgba(127,127,127,.25); margin: .7em 0; }
+    .markdown-body table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: .5em 0; }
+    .markdown-body th, .markdown-body td { border: 1px solid rgba(120,160,230,.35); padding: 4px 8px; min-width: 56px; }
+    .markdown-body th { background: rgba(91,140,255,.1); }
     .markdown-body a { color: var(--theme); text-decoration: underline; overflow-wrap: anywhere; }
     .markdown-body > :first-child { margin-top: 0; }
     .markdown-body > :last-child { margin-bottom: 0; }
-    .reply-warning { margin-top: .8em; padding-top: .6em; border-top: 1px solid rgba(127,127,127,.3); opacity: .8; }
-    .campus-only #portrait-stage { top: calc(var(--campus-reply-space) + 8px); bottom: calc(var(--input-height, 32px) + 58px); }
+    .reply-warning { margin-top: .7em; padding-top: .5em; border-top: 1px solid rgba(127,127,127,.25); opacity: .8; }
+    .campus-only #portrait-stage { top: calc(var(--campus-reply-space) + 8px); bottom: calc(var(--input-height, 32px) + 48px); }
     .campus-only #window-drag-handle { top: calc(var(--campus-reply-space) + 8px); }
     .campus-only #window-zoom-in { top: calc(var(--campus-reply-space) + 42px); }
     .campus-only #window-zoom-out { top: calc(var(--campus-reply-space) + 76px); }
     .campus-only #window-scale-label { top: calc(var(--campus-reply-space) + 110px); }
-    #new-conversation-btn {
-      height: var(--bar); min-width: var(--bar); padding: 0 7px;
-      border: 2px solid var(--theme-light); border-radius: 14px;
-      color: var(--theme); background: #fff; cursor: pointer; flex-shrink: 0;
-    }
-    #stop-speech-btn {
-      width: var(--bar); height: var(--bar); flex-shrink: 0;
-      border: 2px solid var(--theme-light); border-radius: 50%;
-      background: #fff; color: var(--theme); cursor: pointer;
-    }
-    #stop-speech-btn[hidden] { display: none; }
-    #chat-controls {
-      position: absolute; left: 10px; right: 10px; bottom: calc(var(--input-height, 32px) + 18px);
-      display: flex; align-items: center; gap: 6px; pointer-events: all; z-index: 16;
-    }
-    #chat-mode {
-      font: inherit; font-size: 12px; color: #335cad; background: #fff;
-      border: 1px solid var(--theme-light); border-radius: 9px; padding: 5px 7px;
-    }
-    .chat-toolbar-space { flex: 1; }
+
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-    #chat-controls #stop-speech-btn { width: auto; height: 28px; border-radius: 9px; padding: 0 7px; font: inherit; font-size: 12px; }
-    #send-btn[data-busy="true"] svg { display: none; }
-    #send-btn[data-busy="true"]::after { content: ''; width: 10px; height: 10px; border-radius: 2px; background: white; }
-    @media (prefers-color-scheme: dark) {
-      #chat-bubble .speech-bubble { background: rgba(30,32,44,.97); color: #eee; border-color: rgba(150,165,210,.3); }
-      #chat-bubble .speech-bubble[data-kind="user"] { background: #303c59; }
-      .speech-outcome { color: #92d5bb; }
-      .speech-outcome[data-status="failed"] { color: #f1aaa1; }
-      .speech-outcome[data-status="partial"], .speech-outcome[data-status="uncertain"] { color: #e2c08c; }
+
+    /* =========================================================
+       268px 小巧一体式云朵对话舱（上半输入 + 下半工具合为单张卡片，点击人物弹出）
+    ========================================================= */
+    /* 上半部：输入区（与下半部严丝合缝拼成一张 268px 小卡片） */
+    #chat-area {
+      position: absolute;
+      left: 50%;
+      bottom: 34px;
+      width: var(--dock-width);
+      transform: translateX(-50%) translateY(0) scale(1);
+      padding: 5px 6px 3px 12px;
+      display: flex;
+      gap: 5px;
+      align-items: flex-end;
+      background: #ffffff;
+      border: 1.5px solid rgba(114, 162, 255, 0.55);
+      border-bottom: none;
+      border-radius: 16px 16px 0 0;
+      box-shadow: 0 -2px 12px rgba(52, 102, 220, 0.08);
+      pointer-events: all;
+      z-index: 16;
+      opacity: 1;
+      transition: opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1), transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.18s ease;
     }
+
+    /* 小巧向上的气泡尖角，指向智小理脚下，像桌宠自己的对话小面板 */
+    #chat-area::after {
+      content: '';
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      width: 10px;
+      height: 10px;
+      background: #ffffff;
+      border-top: 1.5px solid rgba(114, 162, 255, 0.55);
+      border-left: 1.5px solid rgba(114, 162, 255, 0.55);
+      transform: translateX(-50%) rotate(45deg);
+      pointer-events: none;
+    }
+
+    /* 下半部：内嵌底栏（与上半部同宽 268px，无缝拼接成单张小卡片） */
+    #chat-controls {
+      position: absolute;
+      left: 50%;
+      bottom: 8px;
+      width: var(--dock-width);
+      height: 26px;
+      transform: translateX(-50%) translateY(0) scale(1);
+      padding: 0 6px 0 8px;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      background: linear-gradient(180deg, #f5f9ff 0%, #ebf2ff 100%);
+      border: 1.5px solid rgba(114, 162, 255, 0.55);
+      border-top: 1px solid rgba(114, 162, 255, 0.22);
+      border-radius: 0 0 16px 16px;
+      box-shadow: 0 10px 24px rgba(52, 102, 220, 0.18);
+      pointer-events: all;
+      z-index: 15;
+      opacity: 1;
+      transition: opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1), transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.18s ease;
+    }
+
+    .chat-toolbar-space { flex: 1; }
+
+    /* 底栏左侧：小巧模式切换徽章 */
+    #chat-mode {
+      height: 19px;
+      appearance: none;
+      -webkit-appearance: none;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      color: #2f5fd2;
+      background-color: rgba(91, 140, 255, 0.14);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9' viewBox='0 0 24 24' fill='none' stroke='%232f5fd2' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 6px center;
+      border: none;
+      border-radius: 999px;
+      padding: 0 18px 0 8px;
+      cursor: pointer;
+      outline: none;
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+    #chat-mode option {
+      color: #24324b;
+      background: #ffffff;
+      font-weight: 500;
+    }
+    #chat-mode:hover:not(:disabled) {
+      background-color: rgba(91, 140, 255, 0.24);
+    }
+
+    /* 底栏右侧：极简微按钮 */
+    #setup-open,
+    #new-conversation-btn,
+    #chat-controls #stop-speech-btn,
+    #settings-btn {
+      height: 20px;
+      font: inherit;
+      font-size: 11px;
+      color: #4c6ca8;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      padding: 0 5px;
+      min-width: 0;
+      width: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      outline: none;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    #stop-speech-btn[hidden] { display: none !important; }
+    #chat-controls #stop-speech-btn {
+      color: #d9534f;
+      background: rgba(217, 83, 79, 0.12);
+    }
+
+    #settings-btn {
+      width: 20px;
+      padding: 0;
+      border-radius: 50%;
+    }
+    #settings-btn svg {
+      width: 12.5px;
+      height: 12.5px;
+      transition: transform 0.25s ease;
+    }
+    #settings-btn svg path { fill: #4c6ca8; }
+    #settings-btn:hover svg { transform: rotate(40deg); }
+
+    #setup-open:hover:not(:disabled),
+    #new-conversation-btn:hover:not(:disabled),
+    #settings-btn:hover:not(:disabled) {
+      background: rgba(91, 140, 255, 0.14);
+      color: #2450be;
+    }
+
+    #chat-mode:disabled,
+    #new-conversation-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    #chat-input {
+      flex: 1;
+      min-width: 0;
+      height: 32px;
+      max-height: 96px;
+      resize: none;
+      overflow-y: auto;
+      line-height: 20px;
+      font-family: inherit;
+      border: none;
+      border-radius: 0;
+      padding: 6px 0;
+      background: transparent;
+      color: #24324b;
+      font-size: 12.5px;
+      outline: none;
+    }
+    #chat-input::placeholder { color: #8fa5c9; }
+    #chat-input::-webkit-scrollbar { width: 3px; }
+    #chat-input::-webkit-scrollbar-thumb { background: var(--theme-shadow); border-radius: 2px; }
+
+    #send-btn {
+      width: 25px;
+      height: 25px;
+      margin-bottom: 3px;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--theme-gradient);
+      box-shadow: 0 2px 8px rgba(66, 117, 245, 0.34);
+      transition: filter 0.16s ease, transform 0.12s ease, opacity 0.16s ease;
+      flex-shrink: 0;
+    }
+    #send-btn:hover:not(:disabled) {
+      filter: brightness(1.07);
+      transform: translateY(-1px);
+    }
+    #send-btn:active:not(:disabled) {
+      transform: scale(0.92);
+    }
+    #send-btn:disabled {
+      opacity: 0.36;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    #send-btn svg {
+      width: 12.5px;
+      height: 12.5px;
+      transform: translateX(0.5px);
+    }
+    #send-btn svg path { fill: #ffffff; }
+    #send-btn[data-busy="true"] svg { display: none; }
+    #send-btn[data-busy="true"]::after { content: ''; width: 8px; height: 8px; border-radius: 2px; background: white; }
+
+    /* 默认隐藏对话小面板，点击人物（或聚焦输入框）时弹出 */
+    body:not(.dock-awake):not(:focus-within) #chat-controls,
+    body:not(.dock-awake):not(:focus-within) #chat-area {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(-50%) translateY(8px) scale(0.94);
+    }
+
     @media (prefers-reduced-motion: reduce) {
-      #chat-bubble .speech-bubble { transition: opacity .15s; }
+      #chat-bubble .speech-bubble,
+      #chat-controls,
+      #chat-area { transition: opacity .15s; }
     }
 
 
@@ -288,74 +484,9 @@
     #window-zoom-out,
     #window-scale-label { display: none; }
 
-    /* ─── 底部聊天输入区 ───────────────────────────────────── */
-    #chat-area {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      padding: 6px 10px;
-      display: flex;
-      gap: 5px;
-      align-items: flex-end;
-      background: transparent;
-      pointer-events: all;
-      z-index: 15;
-    }
-    #chat-input {
-      flex: 1;
-      min-width: 0;
-      height: 32px;
-      max-height: 96px;
-      resize: none;
-      overflow-y: auto;
-      line-height: 20px;
-      font-family: inherit;
-      border: 2px solid var(--theme-light);
-      border-radius: calc(var(--bar) / 2);
-      padding: 4px 12px;
-      background: #ffffff;
-      color: #333;
-      font-size: calc(var(--bar) * 0.46);
-      outline: none;
-      transition: border-color 0.2s;
-    }
-    #chat-input::placeholder { color: #9bb6dc; }
-    #chat-input:focus { border-color: var(--theme); }
-
-    #send-btn, #settings-btn {
-      width: var(--bar); height: var(--bar);
-      border: 2px solid var(--theme-light);
-      border-radius: 50%;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.2s, border-color 0.2s, transform 0.1s;
-      flex-shrink: 0;
-    }
-    #send-btn:active, #settings-btn:active {
-      transform: scale(0.94);
-    }
-    #send-btn svg, #settings-btn svg {
-      width: calc(var(--bar) * 0.57);
-      height: calc(var(--bar) * 0.57);
-    }
-    #send-btn svg path { fill: #ffffff; }
-    #settings-btn svg path { fill: var(--theme); }
-
-    #send-btn {
-      background: var(--theme-gradient);
-      border-color: var(--theme);
-    }
-    #send-btn:hover { background: var(--theme-dark); border-color: var(--theme-dark); }
-    #send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    #settings-btn { background: #ffffff; }
-    #settings-btn:hover { background: var(--theme-bg); border-color: var(--theme); }
-
   </style>
   <link rel="stylesheet" href="./portrait-pet.css">
+  <link rel="stylesheet" href="./campus-setup.css">
 </head>
 <body class="campus-only">
 
@@ -366,6 +497,12 @@
 
   <!-- 层 2：UI 叠加层 -->
   <div id="ui-layer">
+    <section id="setup-guide" hidden aria-labelledby="setup-title">
+      <div class="setup-heading"><h2 id="setup-title">开始使用智小理</h2><button id="setup-close" type="button">关闭引导</button></div>
+      <p>先配置一种对话模式即可开始，其余功能可以稍后设置。</p>
+      <ul id="setup-features"></ul>
+      <p class="setup-note">“已配置”表示本机已填写所需信息，实际连接和权限以使用结果为准。</p>
+    </section>
 
     <!-- 聊天气泡 -->
     <div id="chat-bubble" class="campus-mode" role="log" aria-live="polite" aria-label="与智小理的对话"></div>
@@ -385,13 +522,14 @@
       </select>
       <span id="chat-status" role="status" class="sr-only">正在加载会话…</span>
       <span class="chat-toolbar-space"></span>
+      <button id="setup-open" type="button" title="查看功能配置与使用引导">引导</button>
       <button id="stop-speech-btn" title="停止朗读" aria-label="停止朗读" hidden>停止朗读</button>
       <button id="new-conversation-btn" title="新建对话，保留长期记忆，不撤销已有预约">新会话</button>
-      <button id="settings-btn" title="设置"><svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M449.194667 82.346667a128 128 0 0 1 125.610666 0l284.16 160a128 128 0 0 1 65.194667 111.530666v316.245334a128 128 0 0 1-65.194667 111.530666l-284.16 160a128 128 0 0 1-125.610666 0l-284.16-160a128 128 0 0 1-65.194667-111.530666V353.877333A128 128 0 0 1 165.034667 242.346667z m83.754666 74.410666a42.666667 42.666667 0 0 0-41.898666 0L206.933333 316.714667a42.666667 42.666667 0 0 0-21.76 37.162666v316.245334a42.666667 42.666667 0 0 0 21.76 37.162666l284.16 160a42.666667 42.666667 0 0 0 41.898667 0l284.16-160a42.666667 42.666667 0 0 0 21.76-37.162666V353.877333a42.666667 42.666667 0 0 0-21.76-37.162666zM512 341.333333a170.666667 170.666667 0 1 1 0 341.333334 170.666667 170.666667 0 0 1 0-341.333334z m0 85.333334a85.333333 85.333333 0 1 0 0 170.666666 85.333333 85.333333 0 0 0 0-170.666666z"/></svg></button>
+      <button id="settings-btn" title="设置" aria-label="设置"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg></button>
     </div>
     <div id="chat-area">
-      <textarea id="chat-input" rows="1" placeholder="和智小理说点什么…" aria-label="聊天消息" title="Enter 发送，Shift+Enter 换行" autocomplete="off" maxlength="8000"></textarea>
-      <button id="send-btn" title="发送"><svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M512 960A448 448 0 1 0 512 64a448 448 0 0 0 0 896z m0 64A512 512 0 1 1 512 0a512 512 0 0 1 0 1024z"/><path d="M448 422.656v217.088L621.632 531.2 448 422.656z m14.336 283.584A51.2 51.2 0 0 1 384 662.848V399.552a51.2 51.2 0 0 1 78.336-43.392l210.56 131.648a51.2 51.2 0 0 1 0 86.784l-210.56 131.648z"/></svg></button>
+      <textarea id="chat-input" rows="1" placeholder="和智小理聊聊…" aria-label="聊天消息" title="Enter 发送，Shift+Enter 换行" autocomplete="off" maxlength="8000"></textarea>
+      <button id="send-btn" title="发送"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3.4 20.4l17.45-7.48a1 1 0 0 0 0-1.84L3.4 3.6a.993.993 0 0 0-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z"/></svg></button>
     </div>
 
 
@@ -404,6 +542,7 @@
   <script src="../assets/zhixiaoli/layered/rig.js"></script>
   <script src="./portrait-mesh.js"></script>
   <script src="./portrait-layered.js"></script>
+  <script src="./portrait-live2d.js"></script>
   <script src="./portrait-pet.js"></script>
   <script src="../services/campus-answer.js"></script>
   <script src="../libs/marked.umd.js"></script>
@@ -411,6 +550,7 @@
   <script src="./campus-markdown.js"></script>
   <script src="./campus-bubbles.js"></script>
   <script src="./campus-speech.js"></script>
+  <script src="./campus-setup.js"></script>
   <script src="./campus-chat.js"></script>
 </body>
 </html>

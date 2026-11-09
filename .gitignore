@@ -7,6 +7,8 @@ dist/
 
 config.json
 campus.local.json
+# Local competition credentials: included explicitly in the installer, not source control.
+distribution.defaults.json
 memory.json
 campus-memory.json
 campus-session.json
@@ -37,3 +39,8 @@ LOCAL_HANDOFF.md
 # Local review runs and generated application profiles
 verification/
 tests/unit-table-*/
+
+.live2d-probe-data/
+docs/archive/
+config.json.bak
+config.json.damaged-*
